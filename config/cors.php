@@ -23,6 +23,8 @@ return [
         env('FRONTEND_URL', 'http://localhost:3000'),
         'http://localhost:8100', // Mobile app
         'http://127.0.0.1:8100', // Mobile app alternative
+        'http://ielts-ui.s3-website-us-east-1.amazonaws.com', // S3 Frontend
+        '*', // Allow all origins for AWS deployment
     ],
 
     'allowed_origins_patterns' => [],

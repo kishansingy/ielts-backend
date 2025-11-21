@@ -19,7 +19,9 @@ return [
 
     'allowed_methods' => ['*'],
 
-    'allowed_origins' => ['*'],
+    'allowed_origins' => explode(',', env('CORS_ALLOWED_ORIGINS', 
+        'http://localhost:3000,http://localhost:8100,http://127.0.0.1:8100,http://ielts-ui.s3-website-us-east-1.amazonaws.com'
+    )),
 
     'allowed_origins_patterns' => [],
 

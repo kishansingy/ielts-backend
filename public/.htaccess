@@ -5,11 +5,11 @@
 
     RewriteEngine On
 
-    # CORS Headers
-    Header always set Access-Control-Allow-Origin "*"
-    Header always set Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
-    Header always set Access-Control-Allow-Headers "Authorization, Content-Type, Accept, X-Requested-With"
-    Header always set Access-Control-Allow-Credentials "true"
+    # CORS Headers - Let Laravel handle CORS, not Apache
+    # Header always set Access-Control-Allow-Origin "*"
+    # Header always set Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
+    # Header always set Access-Control-Allow-Headers "Authorization, Content-Type, Accept, X-Requested-With"
+    # Header always set Access-Control-Allow-Credentials "true"
 
     # Handle preflight OPTIONS requests
     RewriteCond %{REQUEST_METHOD} OPTIONS

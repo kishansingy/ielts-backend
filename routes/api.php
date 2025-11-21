@@ -15,6 +15,17 @@ use App\Http\Controllers\AuthController;
 |
 */
 
+// Test endpoint to verify backend is reachable
+Route::get('test', function () {
+    \Log::info('Test endpoint hit from: ' . request()->header('Origin'));
+    return response()->json([
+        'status' => 'success',
+        'message' => 'Backend is reachable',
+        'timestamp' => now(),
+        'origin' => request()->header('Origin')
+    ]);
+});
+
 // Authentication routes
 Route::prefix('auth')->group(function () {
     Route::post('register', [AuthController::class, 'register']);

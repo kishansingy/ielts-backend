@@ -36,12 +36,19 @@ class AuthController extends Controller
 
     public function login(Request $request)
     {
+        \Log::info('=== LOGIN REQUEST RECEIVED ===');
+        \Log::info('Request Origin: ' . $request->header('Origin'));
+        \Log::info('Request Method: ' . $request->method());
+        \Log::info('Request Data: ' . json_encode($request->all()));
+        \Log::info('Request Headers: ' . json_encode($request->headers->all()));
+        
         $request->validate([
             'email' => 'required|email',
             'password' => 'required',
         ]);
 
         if (!Auth::attempt($request->only('email', 'password'))) {
+            \Log::error('Authentication failed for: ' . $request->email);
             throw ValidationException::withMessages([
                 'email' => ['The provided credentials are incorrect.'],
             ]);
@@ -49,6 +56,8 @@ class AuthController extends Controller
 
         $user = Auth::user();
         $token = $user->createToken('auth-token')->plainTextToken;
+
+        \Log::info('Login successful for user: ' . $user->email);
 
         return response()->json([
             'user' => $user,

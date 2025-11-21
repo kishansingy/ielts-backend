@@ -5,11 +5,12 @@
 
     RewriteEngine On
 
-    # CORS Headers - Let Laravel handle CORS, not Apache
-    # Header always set Access-Control-Allow-Origin "*"
-    # Header always set Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
-    # Header always set Access-Control-Allow-Headers "Authorization, Content-Type, Accept, X-Requested-With"
-    # Header always set Access-Control-Allow-Credentials "true"
+    # CORS Headers - Dynamic origin handling
+    SetEnvIf Origin "^http(s)?://(.+\.)?(localhost|127\.0\.0\.1|ielts-ui\.s3-website-us-east-1\.amazonaws\.com)(:[0-9]+)?$" ORIGIN_ALLOWED=$0
+    Header always set Access-Control-Allow-Origin "%{ORIGIN_ALLOWED}e" env=ORIGIN_ALLOWED
+    Header always set Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
+    Header always set Access-Control-Allow-Headers "Authorization, Content-Type, Accept, X-Requested-With, Origin"
+    Header always set Access-Control-Allow-Credentials "true"
 
     # Handle preflight OPTIONS requests
     RewriteCond %{REQUEST_METHOD} OPTIONS

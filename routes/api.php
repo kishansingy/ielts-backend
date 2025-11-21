@@ -38,9 +38,16 @@ Route::get('welcome', function () {
     ]);
 });
 
+// Handle OPTIONS preflight for simple-login
+Route::options('simple-login', function () {
+    \Log::info('OPTIONS request for simple-login from: ' . request()->header('Origin'));
+    return response()->json([], 200);
+});
+
 // Simple login test without withCredentials
 Route::post('simple-login', function () {
     \Log::info('=== SIMPLE LOGIN ATTEMPT ===');
+    \Log::info('Method: ' . request()->method());
     \Log::info('Origin: ' . request()->header('Origin'));
     \Log::info('Data: ' . json_encode(request()->all()));
     

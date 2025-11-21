@@ -53,7 +53,8 @@ class AuthController extends Controller
         return response()->json([
             'user' => $user,
             'token' => $token,
-        ]);
+        ])->header('Access-Control-Allow-Origin', $request->header('Origin'))
+          ->header('Access-Control-Allow-Credentials', 'true');
     }
 
     public function logout(Request $request)

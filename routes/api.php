@@ -26,6 +26,42 @@ Route::get('test', function () {
     ]);
 });
 
+// Welcome endpoint without authentication
+Route::get('welcome', function () {
+    \Log::info('Welcome endpoint hit from: ' . request()->header('Origin'));
+    return response()->json([
+        'status' => 'success',
+        'message' => 'Welcome to IELTS Learning App!',
+        'timestamp' => now(),
+        'origin' => request()->header('Origin'),
+        'note' => 'This endpoint works without authentication'
+    ]);
+});
+
+// Simple login test without withCredentials
+Route::post('simple-login', function () {
+    \Log::info('=== SIMPLE LOGIN ATTEMPT ===');
+    \Log::info('Origin: ' . request()->header('Origin'));
+    \Log::info('Data: ' . json_encode(request()->all()));
+    
+    $credentials = request()->only('email', 'password');
+    
+    if (!Auth::attempt($credentials)) {
+        \Log::error('Auth failed for: ' . request()->email);
+        return response()->json(['error' => 'Invalid credentials'], 401);
+    }
+    
+    $user = Auth::user();
+    $token = $user->createToken('auth-token')->plainTextToken;
+    
+    \Log::info('Login successful for: ' . $user->email);
+    
+    return response()->json([
+        'user' => $user,
+        'token' => $token
+    ]);
+});
+
 // Authentication routes
 Route::prefix('auth')->group(function () {
     Route::post('register', [AuthController::class, 'register']);

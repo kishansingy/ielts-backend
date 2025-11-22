@@ -20,7 +20,10 @@ return [
     'allowed_methods' => ['*'],
 
     // Allow API calls from everywhere for now
-    'allowed_origins' => ['*'],
+    'allowed_origins' => [
+        'http://ielts-ui.s3-website-us-east-1.amazonaws.com',
+        'http://13.220.190.184',
+    ],
 
     'allowed_origins_patterns' => [],
 

@@ -15,22 +15,22 @@ return [
     |
     */
 
-    'paths' => ['api/*', 'sanctum/csrf-cookie'],
+    'paths' => ['api/*', 'sanctum/*', 'login', 'logout'],
 
     'allowed_methods' => ['*'],
 
-    'allowed_origins' => explode(',', env('CORS_ALLOWED_ORIGINS', 
-        'http://localhost:3000,http://localhost:8100,http://127.0.0.1:8100,http://ielts-ui.s3-website-us-east-1.amazonaws.com'
-    )),
+    // Allow API calls from everywhere for now
+    'allowed_origins' => ['*'],
 
     'allowed_origins_patterns' => [],
 
     'allowed_headers' => ['*'],
 
+    // Required if your frontend sends cookies
+    'supports_credentials' => false,
+
     'exposed_headers' => [],
 
     'max_age' => 0,
-
-    'supports_credentials' => true,
 
 ];

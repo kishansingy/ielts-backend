@@ -15,25 +15,12 @@ return [
     |
     */
 
-    'paths' => ['api/*', 'sanctum/*', 'login', 'logout'],
-
-    'allowed_methods' => ['*'],
-
-    // Allow API calls from everywhere for now
-    'allowed_origins' => [
-        'http://ielts-ui.s3-website-us-east-1.amazonaws.com',
-        'http://13.220.190.184',
-    ],
-
-    'allowed_origins_patterns' => [],
-
-    'allowed_headers' => ['*'],
-
-    // Required if your frontend sends cookies
-    'supports_credentials' => false,
-
-    'exposed_headers' => [],
-
-    'max_age' => 0,
+    'supportsCredentials' => false,
+    'allowedOrigins' => ['*'],
+    'allowedOriginsPatterns' => [],
+    'allowedHeaders' => ['*'],
+    'allowedMethods' => ['*'],
+    'exposedHeaders' => [],
+    'maxAge' => 0,
 
 ];

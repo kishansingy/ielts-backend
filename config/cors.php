@@ -16,12 +16,12 @@ return [
     */
 
     
-    'paths' => ['api/*', 'sanctum/csrf-cookie'],
+     'paths' => ['api/*', 'login', 'logout', 'register', 'sanctum/csrf-cookie'],
     'allowed_methods' => ['*'],
-    'allowed_origins' => ['*'],
+    'allowed_origins' => ['http://ielts-ui.s3-website-us-east-1.amazonaws.com'],
     'allowed_headers' => ['*'],
     'exposed_headers' => [],
     'max_age' => 0,
-    'supports_credentials' => false,
+    'supports_credentials' => true,
 
 ];

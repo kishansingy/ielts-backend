@@ -21,6 +21,11 @@ class WritingController extends Controller
             $query->byType($request->task_type);
         }
         
+        // Filter by band level if provided
+        if ($request->has('band_level')) {
+            $query->byBandLevel($request->band_level);
+        }
+        
         // Search by title if provided
         if ($request->has('search')) {
             $query->where('title', 'like', '%' . $request->search . '%');
@@ -43,6 +48,7 @@ class WritingController extends Controller
             'instructions' => 'nullable|string',
             'time_limit' => 'required|integer|min:1|max:180',
             'word_limit' => 'required|integer|min:50|max:1000',
+            'band_level' => ['required', Rule::in(['band6', 'band7', 'band8', 'band9'])],
         ]);
 
         $task = WritingTask::create([
@@ -52,6 +58,7 @@ class WritingController extends Controller
             'instructions' => $request->instructions,
             'time_limit' => $request->time_limit,
             'word_limit' => $request->word_limit,
+            'band_level' => $request->band_level,
             'created_by' => Auth::id(),
         ]);
         
@@ -90,6 +97,7 @@ class WritingController extends Controller
             'instructions' => 'nullable|string',
             'time_limit' => 'required|integer|min:1|max:180',
             'word_limit' => 'required|integer|min:50|max:1000',
+            'band_level' => ['required', Rule::in(['band6', 'band7', 'band8', 'band9'])],
         ]);
 
         $task->update([
@@ -99,6 +107,7 @@ class WritingController extends Controller
             'instructions' => $request->instructions,
             'time_limit' => $request->time_limit,
             'word_limit' => $request->word_limit,
+            'band_level' => $request->band_level,
         ]);
         
         return response()->json([

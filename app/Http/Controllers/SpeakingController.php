@@ -21,6 +21,11 @@ class SpeakingController extends Controller
             $query->byDifficulty($request->difficulty);
         }
         
+        // Filter by band level if provided
+        if ($request->has('band_level')) {
+            $query->byBandLevel($request->band_level);
+        }
+        
         // Search by title if provided
         if ($request->has('search')) {
             $query->where('title', 'like', '%' . $request->search . '%');
@@ -42,6 +47,7 @@ class SpeakingController extends Controller
             'preparation_time' => 'required|integer|min:0|max:300', // 0 to 5 minutes
             'response_time' => 'required|integer|min:30|max:600', // 30 seconds to 10 minutes
             'difficulty_level' => ['required', Rule::in(['beginner', 'intermediate', 'advanced'])],
+            'band_level' => ['required', Rule::in(['band6', 'band7', 'band8', 'band9'])],
         ]);
 
         $prompt = SpeakingPrompt::create([
@@ -50,6 +56,7 @@ class SpeakingController extends Controller
             'preparation_time' => $request->preparation_time,
             'response_time' => $request->response_time,
             'difficulty_level' => $request->difficulty_level,
+            'band_level' => $request->band_level,
             'created_by' => Auth::id(),
         ]);
         
@@ -87,6 +94,7 @@ class SpeakingController extends Controller
             'preparation_time' => 'required|integer|min:0|max:300',
             'response_time' => 'required|integer|min:30|max:600',
             'difficulty_level' => ['required', Rule::in(['beginner', 'intermediate', 'advanced'])],
+            'band_level' => ['required', Rule::in(['band6', 'band7', 'band8', 'band9'])],
         ]);
 
         $prompt->update([
@@ -95,6 +103,7 @@ class SpeakingController extends Controller
             'preparation_time' => $request->preparation_time,
             'response_time' => $request->response_time,
             'difficulty_level' => $request->difficulty_level,
+            'band_level' => $request->band_level,
         ]);
         
         return response()->json([

@@ -23,6 +23,11 @@ class ReadingController extends Controller
             $query->byDifficulty($request->difficulty);
         }
         
+        // Filter by band level if provided
+        if ($request->has('band_level')) {
+            $query->where('band_level', $request->band_level);
+        }
+        
         // Search by title if provided
         if ($request->has('search')) {
             $query->where('title', 'like', '%' . $request->search . '%');
@@ -42,6 +47,7 @@ class ReadingController extends Controller
             'title' => 'required|string|max:255',
             'content' => 'required|string',
             'difficulty_level' => ['required', Rule::in(['beginner', 'intermediate', 'advanced'])],
+            'band_level' => ['required', Rule::in(['band6', 'band7', 'band8', 'band9'])],
             'time_limit' => 'required|integer|min:1|max:120',
             'questions' => 'required|array|min:1',
             'questions.*.question_text' => 'required|string',
@@ -59,6 +65,7 @@ class ReadingController extends Controller
                 'title' => $request->title,
                 'content' => $request->content,
                 'difficulty_level' => $request->difficulty_level,
+                'band_level' => $request->band_level,
                 'time_limit' => $request->time_limit,
                 'created_by' => Auth::id(),
             ]);
@@ -115,6 +122,7 @@ class ReadingController extends Controller
             'title' => 'required|string|max:255',
             'content' => 'required|string',
             'difficulty_level' => ['required', Rule::in(['beginner', 'intermediate', 'advanced'])],
+            'band_level' => ['required', Rule::in(['band6', 'band7', 'band8', 'band9'])],
             'time_limit' => 'required|integer|min:1|max:120',
             'questions' => 'required|array|min:1',
             'questions.*.id' => 'nullable|integer|exists:questions,id',
@@ -133,6 +141,7 @@ class ReadingController extends Controller
                 'title' => $request->title,
                 'content' => $request->content,
                 'difficulty_level' => $request->difficulty_level,
+                'band_level' => $request->band_level,
                 'time_limit' => $request->time_limit,
             ]);
 

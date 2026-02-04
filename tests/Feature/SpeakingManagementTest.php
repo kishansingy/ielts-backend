@@ -47,7 +47,8 @@ class SpeakingManagementTest extends TestCase
             'prompt_text' => 'Describe your favorite hobby.',
             'preparation_time' => 60,
             'response_time' => 120,
-            'difficulty_level' => 'intermediate'
+            'difficulty_level' => 'intermediate',
+            'band_level' => 'band7'
         ];
 
         $response = $this->actingAs($this->admin, 'api')
@@ -73,7 +74,8 @@ class SpeakingManagementTest extends TestCase
             'prompt_text' => 'Updated prompt text',
             'preparation_time' => 90,
             'response_time' => 180,
-            'difficulty_level' => 'advanced'
+            'difficulty_level' => 'advanced',
+            'band_level' => 'band8'
         ];
 
         $response = $this->actingAs($this->admin, 'api')

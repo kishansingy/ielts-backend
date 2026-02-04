@@ -35,14 +35,31 @@ class Submission extends Model
     }
 
     /**
-     * Get the task (polymorphic relationship)
+     * Get the writing task for writing submissions
      */
-    public function task()
+    public function writingTask()
+    {
+        return $this->belongsTo(WritingTask::class, 'task_id');
+    }
+
+    /**
+     * Get the speaking prompt for speaking submissions
+     */
+    public function speakingPrompt()
+    {
+        return $this->belongsTo(SpeakingPrompt::class, 'task_id');
+    }
+
+    /**
+     * Get the task (polymorphic-like relationship)
+     * This is a helper method, not a true Eloquent relationship
+     */
+    public function getTaskAttribute()
     {
         if ($this->submission_type === 'writing') {
-            return $this->belongsTo(WritingTask::class, 'task_id');
+            return $this->writingTask;
         } elseif ($this->submission_type === 'speaking') {
-            return $this->belongsTo(SpeakingPrompt::class, 'task_id');
+            return $this->speakingPrompt;
         }
         
         return null;

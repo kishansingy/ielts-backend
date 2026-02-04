@@ -48,7 +48,8 @@ class WritingManagementTest extends TestCase
             'prompt' => 'Write an essay about climate change.',
             'instructions' => 'Write at least 250 words',
             'word_limit' => 250,
-            'time_limit' => 40
+            'time_limit' => 40,
+            'band_level' => 'band7'
         ];
 
         $response = $this->actingAs($this->admin, 'api')
@@ -76,7 +77,8 @@ class WritingManagementTest extends TestCase
             'prompt' => 'Updated prompt',
             'instructions' => 'Updated instructions',
             'word_limit' => 300,
-            'time_limit' => 45
+            'time_limit' => 45,
+            'band_level' => 'band8'
         ];
 
         $response = $this->actingAs($this->admin, 'api')

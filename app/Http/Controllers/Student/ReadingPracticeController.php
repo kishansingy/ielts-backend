@@ -107,22 +107,47 @@ class ReadingPracticeController extends Controller
         DB::beginTransaction();
         
         try {
+            // Get passage and questions
+            $passage = ReadingPassage::with('questions')->find($attempt->content_id);
+            $questions = $passage->questions->keyBy('id');
+            
+            // Prepare data for enhanced evaluation
+            $userAnswers = [];
+            $questionData = [];
+            
+            foreach ($request->answers as $answerData) {
+                $question = $questions->get($answerData['question_id']);
+                if (!$question) continue;
+                
+                $userAnswers[] = $answerData['user_answer'];
+                $questionData[] = [
+                    'id' => $question->id,
+                    'type' => $question->question_type,
+                    'correct_answers' => is_array($question->correct_answer) 
+                        ? $question->correct_answer 
+                        : [$question->correct_answer],
+                    'points' => $question->points ?? 1
+                ];
+            }
+            
+            // Use Enhanced Evaluation Service
+            $evaluationService = new \App\Services\EnhancedEvaluationService();
+            $evaluation = $evaluationService->evaluateReading($userAnswers, $questionData);
+            
             $totalScore = 0;
             $results = [];
             
-            foreach ($request->answers as $answerData) {
-                $question = \App\Models\Question::find($answerData['question_id']);
+            // Process each answer with enhanced evaluation results
+            foreach ($request->answers as $index => $answerData) {
+                $question = $questions->get($answerData['question_id']);
+                if (!$question) continue;
                 
-                // Verify question belongs to the passage in this attempt
-                if ($question->passage_id !== $attempt->content_id) {
-                    continue;
-                }
-                
-                $isCorrect = $question->isCorrectAnswer($answerData['user_answer']);
-                $pointsEarned = $isCorrect ? $question->points : 0;
+                $evaluationResult = $evaluation['detailed_results'][$index] ?? null;
+                $isCorrect = $evaluationResult['is_correct'] ?? false;
+                $pointsEarned = $isCorrect ? ($question->points ?? 1) : 0;
                 $totalScore += $pointsEarned;
                 
-                // Save user answer
+                // Save user answer with enhanced evaluation
                 UserAnswer::create([
                     'attempt_id' => $attempt->id,
                     'question_id' => $question->id,
@@ -135,18 +160,22 @@ class ReadingPracticeController extends Controller
                 $results[] = [
                     'question_id' => $question->id,
                     'user_answer' => $answerData['user_answer'],
-                    'correct_answer' => $question->correct_answer,
+                    'correct_answers' => $evaluationResult['correct_answers'] ?? [],
                     'is_correct' => $isCorrect,
                     'points_earned' => $pointsEarned,
-                    'points_possible' => $question->points,
+                    'points_possible' => $question->points ?? 1,
+                    'explanation' => $evaluationResult['explanation'] ?? '',
+                    'evaluation_method' => 'enhanced_fuzzy_matching'
                 ];
             }
             
-            // Update attempt with final score and completion
+            // Update attempt with enhanced evaluation results
             $attempt->update([
                 'score' => $totalScore,
+                'band_score' => $evaluation['band_score'],
                 'time_spent' => $request->time_spent,
                 'completed_at' => now(),
+                'evaluation_details' => $evaluation['detailed_results']
             ]);
             
             DB::commit();
@@ -156,9 +185,16 @@ class ReadingPracticeController extends Controller
                 'results' => [
                     'total_score' => $totalScore,
                     'max_score' => $attempt->max_score,
-                    'percentage' => $attempt->percentage,
+                    'percentage' => $evaluation['accuracy_percentage'],
+                    'band_score' => $evaluation['band_score'],
                     'time_spent' => $request->time_spent,
                     'questions' => $results,
+                    'evaluation_summary' => [
+                        'total_questions' => $evaluation['total_questions'],
+                        'correct_answers' => $evaluation['correct_answers'],
+                        'accuracy_percentage' => $evaluation['accuracy_percentage'],
+                        'evaluation_method' => 'Enhanced Fuzzy Matching v2.0'
+                    ]
                 ]
             ]);
             

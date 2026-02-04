@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IELTS Band Level Management Demo</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #333;
+        }
+
+        .band-levels {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .band-card {
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+            color: white;
+            font-weight: bold;
+        }
+
+        .band6 {
+            background: linear-gradient(135deg, #ff6b6b, #ee5a52);
+        }
+
+        .band7 {
+            background: linear-gradient(135deg, #4ecdc4, #44a08d);
+        }
+
+        .band8 {
+            background: linear-gradient(135deg, #45b7d1, #96c93d);
+        }
+
+        .band9 {
+            background: linear-gradient(135deg, #f093fb, #f5576c);
+        }
+
+        .features {
+            margin-top: 30px;
+        }
+
+        .feature-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .feature-item {
+            padding: 15px;
+            background: #f8f9fa;
+            border-left: 4px solid #007bff;
+            border-radius: 4px;
+        }
+
+        .api-endpoints {
+            margin-top: 30px;
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+        }
+
+        .endpoint {
+            background: white;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-family: monospace;
+            border-left: 3px solid #28a745;
+        }
+
+        .method {
+            color: #007bff;
+            font-weight: bold;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎓 IELTS Band Level Management System</h1>
+            <p>Role-based access control for IELTS learning platform</p>
+        </div>
+
+        <div class="band-levels">
+            <div class="band-card band6">
+                <h3>Band 6</h3>
+                <p>Competent User</p>
+                <small>Generally effective command of the language</small>
+            </div>
+            <div class="band-card band7">
+                <h3>Band 7</h3>
+                <p>Good User</p>
+                <small>Operational command of the language</small>
+            </div>
+            <div class="band-card band8">
+                <h3>Band 8</h3>
+                <p>Very Good User</p>
+                <small>Fully operational with occasional inaccuracies</small>
+            </div>
+            <div class="band-card band9">
+                <h3>Band 9</h3>
+                <p>Expert User</p>
+                <small>Fully operational command of the language</small>
+            </div>
+        </div>
+
+        <div class="features">
+            <h2>🚀 Key Features Implemented</h2>
+            <div class="feature-list">
+                <div class="feature-item">
+                    <h4>🔐 Role-Based Access Control</h4>
+                    <p>Students can only access content appropriate to their assigned band level</p>
+                </div>
+                <div class="feature-item">
+                    <h4>🏫 School Management</h4>
+                    <p>Organize students by schools and manage their band levels centrally</p>
+                </div>
+                <div class="feature-item">
+                    <h4>📊 Band Level Analytics</h4>
+                    <p>Track student distribution across different band levels</p>
+                </div>
+                <div class="feature-item">
+                    <h4>🎯 Targeted Content</h4>
+                    <p>All practice materials and mock tests are tagged with appropriate band levels</p>
+                </div>
+                <div class="feature-item">
+                    <h4>👥 Student Status Management</h4>
+                    <p>Activate/deactivate student accounts as needed</p>
+                </div>
+                <div class="feature-item">
+                    <h4>🔄 Dynamic Band Assignment</h4>
+                    <p>Easily update student band levels as they progress</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="api-endpoints">
+            <h2>📡 API Endpoints</h2>
+
+            <div class="endpoint">
+                <span class="method">GET</span> /api/band-levels - Get all available band levels
+            </div>
+
+            <div class="endpoint">
+                <span class="method">GET</span> /api/band-levels/stats - Get band level statistics
+            </div>
+
+            <div class="endpoint">
+                <span class="method">GET</span> /api/band-levels/students - Get students by band level
+            </div>
+
+            <div class="endpoint">
+                <span class="method">POST</span> /api/band-levels/assign - Assign band level to student (Admin only)
+            </div>
+
+            <div class="endpoint">
+                <span class="method">PUT</span> /api/band-levels/students/{userId} - Update student band level (Admin
+                only)
+            </div>
+
+            <div class="endpoint">
+                <span class="method">PATCH</span> /api/band-levels/students/{userId}/toggle-status - Activate/Deactivate
+                student (Admin only)
+            </div>
+        </div>
+
+        <div style="margin-top: 30px; padding: 20px; background: #e3f2fd; border-radius: 8px;">
+            <h3>🎯 Next Steps</h3>
+            <ol>
+                <li>Run the migrations: <code>php artisan migrate</code></li>
+                <li>Seed sample data: <code>php artisan db:seed --class=BandLevelSeeder</code></li>
+                <li>Test the API endpoints using Postman or your frontend</li>
+                <li>Integrate with your existing frontend components</li>
+            </ol>
+        </div>
+    </div>
+</body>
+
+</html>

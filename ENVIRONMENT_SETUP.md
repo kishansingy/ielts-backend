@@ -2,7 +2,7 @@
 
 ## Current Configuration
 ✅ **LOCAL DEVELOPMENT MODE** is active
-- App URL: `http://13.220.190.184` (can be changed to localhost)
+- App URL: `http://98.82.135.101` (can be changed to localhost)
 - Database: Local MySQL
 - CORS: Allows frontend and mobile app
 
@@ -17,7 +17,7 @@
 APP_NAME="IELTS Learning App"
 APP_ENV=local                    # local | production
 APP_DEBUG=true                   # true for development, false for production
-APP_URL=http://13.220.190.184   # Your backend URL
+APP_URL=http://98.82.135.101   # Your backend URL
 ```
 
 **For Local Development:**
@@ -27,7 +27,7 @@ APP_URL=http://localhost:8000
 
 **For Server/Production:**
 ```env
-APP_URL=http://13.220.190.184
+APP_URL=http://98.82.135.101
 APP_ENV=production
 APP_DEBUG=false
 ```
@@ -43,12 +43,12 @@ CORS_ALLOWED_ORIGINS=http://localhost:3000,http://localhost:8100,http://127.0.0.
 
 #### For Server/Production
 ```env
-CORS_ALLOWED_ORIGINS=http://ielts-ui.s3-website-us-east-1.amazonaws.com,http://13.220.190.184
+CORS_ALLOWED_ORIGINS=http://ielts-ui.s3-website-us-east-1.amazonaws.com,http://98.82.135.101
 ```
 
 #### For Both (Recommended during development)
 ```env
-CORS_ALLOWED_ORIGINS=http://localhost:3000,http://localhost:8100,http://127.0.0.1:8100,http://ielts-ui.s3-website-us-east-1.amazonaws.com,http://13.220.190.184
+CORS_ALLOWED_ORIGINS=http://localhost:3000,http://localhost:8100,http://127.0.0.1:8100,http://ielts-ui.s3-website-us-east-1.amazonaws.com,http://98.82.135.101
 ```
 
 **Explanation:**
@@ -61,7 +61,7 @@ CORS_ALLOWED_ORIGINS=http://localhost:3000,http://localhost:8100,http://127.0.0.
 
 ### Sanctum Configuration
 ```env
-SANCTUM_STATEFUL_DOMAINS=localhost:3000,127.0.0.1:3000,localhost:8100,127.0.0.1:8100,13.220.190.184
+SANCTUM_STATEFUL_DOMAINS=localhost:3000,127.0.0.1:3000,localhost:8100,127.0.0.1:8100,98.82.135.101
 ```
 
 **Add your domains here** if you have authentication issues.
@@ -76,9 +76,9 @@ SANCTUM_STATEFUL_DOMAINS=localhost:3000,127.0.0.1:3000,localhost:8100,127.0.0.1:
    ```env
    APP_ENV=production
    APP_DEBUG=false
-   APP_URL=http://13.220.190.184
+   APP_URL=http://98.82.135.101
    
-   CORS_ALLOWED_ORIGINS=http://ielts-ui.s3-website-us-east-1.amazonaws.com,http://13.220.190.184
+   CORS_ALLOWED_ORIGINS=http://ielts-ui.s3-website-us-east-1.amazonaws.com,http://98.82.135.101
    ```
 
 2. **Clear cache:**

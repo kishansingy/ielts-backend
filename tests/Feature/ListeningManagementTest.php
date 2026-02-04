@@ -54,6 +54,7 @@ class ListeningManagementTest extends TestCase
             'transcript' => 'This is the audio transcript',
             'duration' => 180,
             'difficulty_level' => 'intermediate',
+            'band_level' => 'band7',
             'questions' => [
                 [
                     'question_text' => 'What is the main topic?',
@@ -87,6 +88,7 @@ class ListeningManagementTest extends TestCase
         $data = [
             'title' => 'Updated Exercise',
             'difficulty_level' => 'advanced',
+            'band_level' => 'band8',
             'duration' => 240,
             'transcript' => 'Updated transcript',
             'questions' => [

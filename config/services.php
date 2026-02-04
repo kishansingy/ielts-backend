@@ -30,4 +30,23 @@ return [
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
 
+    'openai' => [
+        'api_key' => env('OPENAI_API_KEY'),
+        'base_url' => env('OPENAI_BASE_URL', 'https://api.openai.com/v1'),
+        'model' => env('OPENAI_MODEL', 'gpt-4'),
+    ],
+
+    // Firebase Cloud Messaging (FCM) for mobile notifications
+    'fcm' => [
+        'server_key' => env('FCM_SERVER_KEY'),
+        'sender_id' => env('FCM_SENDER_ID'),
+    ],
+
+    // VAPID keys for web push notifications
+    'vapid' => [
+        'public_key' => env('VAPID_PUBLIC_KEY'),
+        'private_key' => env('VAPID_PRIVATE_KEY'),
+        'subject' => env('VAPID_SUBJECT', env('APP_URL')),
+    ],
+
 ];

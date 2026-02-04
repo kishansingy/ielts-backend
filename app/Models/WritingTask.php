@@ -16,6 +16,7 @@ class WritingTask extends Model
         'instructions',
         'time_limit',
         'word_limit',
+        'band_level',
         'created_by',
     ];
 
@@ -71,5 +72,28 @@ class WritingTask extends Model
     public function scopeTask2($query)
     {
         return $query->where('task_type', 'task2');
+    }
+
+    /**
+     * Scope for band level
+     */
+    public function scopeByBandLevel($query, $level)
+    {
+        return $query->where('band_level', $level);
+    }
+
+    /**
+     * Get band level display name
+     */
+    public function getBandLevelDisplay()
+    {
+        $levels = [
+            'band6' => 'Band 6',
+            'band7' => 'Band 7',
+            'band8' => 'Band 8',
+            'band9' => 'Band 9'
+        ];
+
+        return $levels[$this->band_level] ?? 'No Band Assigned';
     }
 }

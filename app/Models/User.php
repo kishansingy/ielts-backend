@@ -22,6 +22,9 @@ class User extends Authenticatable
         'email',
         'password',
         'role',
+        'band_level',
+        'school_name',
+        'is_active',
     ];
 
     /**
@@ -60,6 +63,57 @@ class User extends Authenticatable
     }
 
     /**
+     * Get user's band level
+     */
+    public function getBandLevel()
+    {
+        return $this->band_level;
+    }
+
+    /**
+     * Check if user has specific band level
+     */
+    public function hasBandLevel($bandLevel)
+    {
+        return $this->band_level === $bandLevel;
+    }
+
+    /**
+     * Check if user can access content of specific band level
+     */
+    public function canAccessBandLevel($contentBandLevel)
+    {
+        if ($this->isAdmin()) {
+            return true; // Admins can access all levels
+        }
+
+        return $this->band_level === $contentBandLevel;
+    }
+
+    /**
+     * Get band level display name
+     */
+    public function getBandLevelDisplay()
+    {
+        $levels = [
+            'band6' => 'Band 6',
+            'band7' => 'Band 7', 
+            'band8' => 'Band 8',
+            'band9' => 'Band 9'
+        ];
+
+        return $levels[$this->band_level] ?? 'No Band Assigned';
+    }
+
+    /**
+     * Check if user is active
+     */
+    public function isActive()
+    {
+        return $this->is_active;
+    }
+
+    /**
      * Scope for admin users
      */
     public function scopeAdmins($query)
@@ -73,6 +127,30 @@ class User extends Authenticatable
     public function scopeStudents($query)
     {
         return $query->where('role', 'student');
+    }
+
+    /**
+     * Scope for users by band level
+     */
+    public function scopeByBandLevel($query, $bandLevel)
+    {
+        return $query->where('band_level', $bandLevel);
+    }
+
+    /**
+     * Scope for active users
+     */
+    public function scopeActive($query)
+    {
+        return $query->where('is_active', true);
+    }
+
+    /**
+     * Scope for users by school
+     */
+    public function scopeBySchool($query, $schoolName)
+    {
+        return $query->where('school_name', $schoolName);
     }
 
     /**
@@ -112,5 +190,56 @@ class User extends Authenticatable
     public function speakingPrompts()
     {
         return $this->hasMany(SpeakingPrompt::class, 'created_by');
+    }
+
+    /**
+     * Get user's mock test attempts
+     */
+    public function mockTestAttempts()
+    {
+        return $this->hasMany(MockTestAttempt::class);
+    }
+
+    /**
+     * Get user's question usage tracking
+     */
+    public function questionUsageTracking()
+    {
+        return $this->hasMany(QuestionUsageTracking::class);
+    }
+
+    /**
+     * Get user's AI generation logs
+     */
+    public function aiGenerationLogs()
+    {
+        return $this->hasMany(AiQuestionGenerationLog::class);
+    }
+
+    /**
+     * Get the student profile for this user
+     */
+    public function student()
+    {
+        return $this->hasOne(Student::class);
+    }
+
+    /**
+     * Check if user has a student profile
+     */
+    public function hasStudentProfile()
+    {
+        return $this->student()->exists();
+    }
+
+    /**
+     * Get student's band level (from student profile if exists, otherwise from user table)
+     */
+    public function getStudentBandLevel()
+    {
+        if ($this->hasStudentProfile()) {
+            return $this->student->band_level;
+        }
+        return $this->band_level;
     }
 }

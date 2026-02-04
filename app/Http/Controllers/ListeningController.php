@@ -24,6 +24,11 @@ class ListeningController extends Controller
             $query->byDifficulty($request->difficulty);
         }
         
+        // Filter by band level if provided
+        if ($request->has('band_level')) {
+            $query->byBandLevel($request->band_level);
+        }
+        
         // Search by title if provided
         if ($request->has('search')) {
             $query->where('title', 'like', '%' . $request->search . '%');
@@ -45,6 +50,7 @@ class ListeningController extends Controller
             'transcript' => 'nullable|string',
             'duration' => 'required|integer|min:1|max:3600', // 1 second to 1 hour
             'difficulty_level' => ['required', Rule::in(['beginner', 'intermediate', 'advanced'])],
+            'band_level' => ['required', Rule::in(['band6', 'band7', 'band8', 'band9'])],
             'questions' => 'required|array|min:1',
             'questions.*.question_text' => 'required|string',
             'questions.*.question_type' => ['required', Rule::in(['multiple_choice', 'true_false', 'fill_blank'])],
@@ -66,6 +72,7 @@ class ListeningController extends Controller
                 'transcript' => $request->transcript,
                 'duration' => $request->duration,
                 'difficulty_level' => $request->difficulty_level,
+                'band_level' => $request->band_level,
                 'created_by' => Auth::id(),
             ]);
 
@@ -130,6 +137,7 @@ class ListeningController extends Controller
             'transcript' => 'nullable|string',
             'duration' => 'required|integer|min:1|max:3600',
             'difficulty_level' => ['required', Rule::in(['beginner', 'intermediate', 'advanced'])],
+            'band_level' => ['required', Rule::in(['band6', 'band7', 'band8', 'band9'])],
             'questions' => 'required|array|min:1',
             'questions.*.id' => 'nullable|integer|exists:listening_questions,id',
             'questions.*.question_text' => 'required|string',
@@ -147,6 +155,7 @@ class ListeningController extends Controller
                 'transcript' => $request->transcript,
                 'duration' => $request->duration,
                 'difficulty_level' => $request->difficulty_level,
+                'band_level' => $request->band_level,
             ];
             
             // Handle audio file update if provided

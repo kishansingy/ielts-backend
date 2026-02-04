@@ -15,6 +15,7 @@ class SpeakingPrompt extends Model
         'preparation_time',
         'response_time',
         'difficulty_level',
+        'band_level',
         'created_by',
     ];
 
@@ -54,5 +55,28 @@ class SpeakingPrompt extends Model
     public function scopeByDifficulty($query, $level)
     {
         return $query->where('difficulty_level', $level);
+    }
+
+    /**
+     * Scope for band level
+     */
+    public function scopeByBandLevel($query, $level)
+    {
+        return $query->where('band_level', $level);
+    }
+
+    /**
+     * Get band level display name
+     */
+    public function getBandLevelDisplay()
+    {
+        $levels = [
+            'band6' => 'Band 6',
+            'band7' => 'Band 7',
+            'band8' => 'Band 8',
+            'band9' => 'Band 9'
+        ];
+
+        return $levels[$this->band_level] ?? 'No Band Assigned';
     }
 }

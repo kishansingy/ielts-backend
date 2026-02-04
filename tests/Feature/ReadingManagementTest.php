@@ -56,6 +56,7 @@ class ReadingManagementTest extends TestCase
             'title' => 'Test Passage',
             'content' => 'This is a test passage for reading comprehension.',
             'difficulty_level' => 'intermediate',
+            'band_level' => 'band7',
             'time_limit' => 20,
             'questions' => [
                 [
@@ -91,6 +92,7 @@ class ReadingManagementTest extends TestCase
             'title' => 'Updated Title',
             'content' => 'Updated passage text',
             'difficulty_level' => 'advanced',
+            'band_level' => 'band8',
             'time_limit' => 25,
             'questions' => [
                 [

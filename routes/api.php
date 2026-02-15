@@ -75,6 +75,8 @@ Route::post('simple-login', function () {
 
 // Authentication routes
 Route::prefix('auth')->group(function () {
+    Route::post('send-otp', [AuthController::class, 'sendOtp']);
+    Route::post('verify-otp', [AuthController::class, 'verifyOtp']);
     Route::post('register', [AuthController::class, 'register']);
     Route::post('login', [AuthController::class, 'login']);
     

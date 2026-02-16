@@ -78,6 +78,7 @@ class ProductionMockTestsSeeder extends Seeder
     {
         // Get or create reading passages for this test
         $passages = ReadingPassage::where('band_level', $bandLevel)
+            ->with('questions')
             ->skip(($testNumber - 1) * 3)
             ->take(3)
             ->get();
@@ -93,7 +94,18 @@ class ProductionMockTestsSeeder extends Seeder
                     'time_limit' => 20,
                     'created_by' => $adminUser->id,
                 ]);
+                
+                // Create 5 questions for this passage
+                $this->createQuestionsForPassage($passage, $bandLevel, $i + 1);
+                
                 $passages->push($passage);
+            }
+        } else {
+            // Check if existing passages have questions, if not create them
+            foreach ($passages as $passage) {
+                if ($passage->questions->count() === 0) {
+                    $this->createQuestionsForPassage($passage, $bandLevel, 1);
+                }
             }
         }
 
@@ -117,6 +129,7 @@ class ProductionMockTestsSeeder extends Seeder
     {
         // Get or create listening exercises
         $exercises = ListeningExercise::where('band_level', $bandLevel)
+            ->with('questions')
             ->skip(($testNumber - 1) * 4)
             ->take(4)
             ->get();
@@ -132,7 +145,18 @@ class ProductionMockTestsSeeder extends Seeder
                     'band_level' => $bandLevel,
                     'created_by' => $adminUser->id,
                 ]);
+                
+                // Create 5 questions for this exercise
+                $this->createQuestionsForListening($exercise, $i + 1);
+                
                 $exercises->push($exercise);
+            }
+        } else {
+            // Check if existing exercises have questions, if not create them
+            foreach ($exercises as $exercise) {
+                if ($exercise->questions->count() === 0) {
+                    $this->createQuestionsForListening($exercise, 1);
+                }
             }
         }
 
@@ -442,5 +466,57 @@ class ProductionMockTestsSeeder extends Seeder
         ];
         
         return $prompts[($testNumber - 1) % count($prompts)];
+    }
+    
+    /**
+     * Create questions for a reading passage
+     */
+    private function createQuestionsForPassage($passage, $bandLevel, $passageNumber)
+    {
+        $questions = [
+            ['text' => 'What is the main topic of this passage?', 'type' => 'fill_blank', 'answer' => 'artificial intelligence'],
+            ['text' => 'According to the passage, which industries have been transformed?', 'type' => 'multiple_choice', 'answer' => 'healthcare and finance', 'options' => ['education and retail', 'healthcare and finance', 'agriculture and mining', 'tourism and hospitality']],
+            ['text' => 'Machine learning enables what type of processes?', 'type' => 'fill_blank', 'answer' => 'automated decision-making'],
+            ['text' => 'The passage discusses predictions that are more what?', 'type' => 'multiple_choice', 'answer' => 'accurate', 'options' => ['expensive', 'accurate', 'complex', 'simple']],
+            ['text' => 'What has transformed industries according to the text?', 'type' => 'fill_blank', 'answer' => 'machine learning algorithms'],
+        ];
+        
+        foreach ($questions as $index => $questionData) {
+            \App\Models\Question::create([
+                'passage_id' => $passage->id,
+                'question_text' => $questionData['text'],
+                'question_type' => $questionData['type'],
+                'correct_answer' => $questionData['answer'],
+                'options' => $questionData['options'] ?? null,
+                'points' => 1,
+                'ielts_band_level' => str_replace('band', '', $bandLevel),
+                'is_ai_generated' => false,
+            ]);
+        }
+    }
+    
+    /**
+     * Create questions for a listening exercise
+     */
+    private function createQuestionsForListening($exercise, $sectionNumber)
+    {
+        $questions = [
+            ['text' => 'What is the main purpose of this conversation?', 'type' => 'fill_blank', 'answer' => 'course registration'],
+            ['text' => 'Who is the student speaking with?', 'type' => 'multiple_choice', 'answer' => 'administrator', 'options' => ['professor', 'administrator', 'counselor', 'librarian']],
+            ['text' => 'What does the student need help with?', 'type' => 'fill_blank', 'answer' => 'registering for courses'],
+            ['text' => 'Is this conversation taking place at a university?', 'type' => 'true_false', 'answer' => 'true', 'options' => ['true', 'false']],
+            ['text' => 'What information does the administrator need?', 'type' => 'fill_blank', 'answer' => 'student file'],
+        ];
+        
+        foreach ($questions as $index => $questionData) {
+            \App\Models\ListeningQuestion::create([
+                'listening_exercise_id' => $exercise->id,
+                'question_text' => $questionData['text'],
+                'question_type' => $questionData['type'],
+                'correct_answer' => $questionData['answer'],
+                'options' => $questionData['options'] ?? null,
+                'points' => 1,
+            ]);
+        }
     }
 }

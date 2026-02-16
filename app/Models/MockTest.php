@@ -52,7 +52,10 @@ class MockTest extends Model
             return $query;
         }
 
-        return $query->where('band_level', $user->getBandLevel())
+        // If user has no band level, show band6 tests by default
+        $userBandLevel = $user->getBandLevel() ?? 'band6';
+
+        return $query->where('band_level', $userBandLevel)
                     ->where('is_active', true);
     }
 

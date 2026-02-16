@@ -90,7 +90,10 @@ class User extends Authenticatable
             return true; // Admins can access all levels
         }
 
-        return $this->band_level === $contentBandLevel;
+        // If user has no band level, allow access to band6 content
+        $userBandLevel = $this->band_level ?? 'band6';
+
+        return $userBandLevel === $contentBandLevel;
     }
 
     /**

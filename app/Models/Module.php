@@ -66,7 +66,10 @@ class Module extends Model
             return $query;
         }
 
-        return $query->where('band_level', $user->getBandLevel());
+        // If user has no band level, show band6 modules by default
+        $userBandLevel = $user->getBandLevel() ?? 'band6';
+
+        return $query->where('band_level', $userBandLevel);
     }
 
     /**

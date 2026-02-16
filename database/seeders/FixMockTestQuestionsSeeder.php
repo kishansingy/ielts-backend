@@ -7,35 +7,52 @@ use App\Models\ReadingPassage;
 use App\Models\ListeningExercise;
 use App\Models\Question;
 use App\Models\ListeningQuestion;
+use Illuminate\Support\Facades\DB;
 
-class AddQuestionsToExistingPassagesSeeder extends Seeder
+class FixMockTestQuestionsSeeder extends Seeder
 {
     /**
-     * Add questions to existing passages that don't have any
+     * Delete generic questions and add proper contextual questions
      */
     public function run(): void
     {
-        $this->command->info('Adding questions to existing reading passages...');
+        $this->command->info('Fixing mock test questions...');
         
-        // Get all reading passages without questions
-        $passages = ReadingPassage::doesntHave('questions')->get();
+        DB::transaction(function () {
+            // Delete all existing questions for mock test passages
+            $this->command->info('Removing generic questions...');
+            
+            $deletedReadingQuestions = Question::whereHas('passage', function($query) {
+                $query->where('title', 'like', '%Test%');
+            })->delete();
+            
+            $this->command->info("Deleted {$deletedReadingQuestions} reading questions.");
+            
+            $deletedListeningQuestions = ListeningQuestion::whereHas('listeningExercise', function($query) {
+                $query->where('title', 'like', '%Test%');
+            })->delete();
+            
+            $this->command->info("Deleted {$deletedListeningQuestions} listening questions.");
+            
+            // Add proper questions to all mock test passages
+            $this->command->info('Adding contextual questions...');
+            
+            $passages = ReadingPassage::where('title', 'like', '%Test%')->get();
+            foreach ($passages as $passage) {
+                $this->createQuestionsForPassage($passage);
+            }
+            
+            $this->command->info("Added questions to {$passages->count()} reading passages.");
+            
+            $exercises = ListeningExercise::where('title', 'like', '%Test%')->get();
+            foreach ($exercises as $exercise) {
+                $this->createQuestionsForListening($exercise);
+            }
+            
+            $this->command->info("Added questions to {$exercises->count()} listening exercises.");
+        });
         
-        foreach ($passages as $passage) {
-            $this->createQuestionsForPassage($passage);
-        }
-        
-        $this->command->info("Added questions to {$passages->count()} reading passages.");
-        
-        // Get all listening exercises without questions
-        $this->command->info('Adding questions to existing listening exercises...');
-        $exercises = ListeningExercise::doesntHave('questions')->get();
-        
-        foreach ($exercises as $exercise) {
-            $this->createQuestionsForListening($exercise);
-        }
-        
-        $this->command->info("Added questions to {$exercises->count()} listening exercises.");
-        $this->command->info('Done!');
+        $this->command->info('Mock test questions fixed successfully!');
     }
     
     /**
@@ -43,7 +60,7 @@ class AddQuestionsToExistingPassagesSeeder extends Seeder
      */
     private function createQuestionsForPassage($passage)
     {
-        // Create contextual questions based on the passage content
+        // Create contextual questions based on AI and technology theme
         $questions = [
             ['text' => 'What is the main subject discussed in the passage?', 'type' => 'fill_blank', 'answer' => 'artificial intelligence'],
             ['text' => 'Which industries have been transformed by machine learning according to the passage?', 'type' => 'multiple_choice', 'answer' => 'healthcare and finance', 'options' => ['education and retail', 'healthcare and finance', 'agriculture and mining', 'tourism and hospitality']],

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use App\Services\FirebaseService;
+use App\Services\SmsService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -12,10 +13,12 @@ use Illuminate\Validation\ValidationException;
 class AuthController extends Controller
 {
     protected $firebaseService;
+    protected $smsService;
 
-    public function __construct(FirebaseService $firebaseService)
+    public function __construct(FirebaseService $firebaseService, SmsService $smsService)
     {
         $this->firebaseService = $firebaseService;
+        $this->smsService = $smsService;
     }
 
     public function sendOtp(Request $request)
@@ -24,7 +27,8 @@ class AuthController extends Controller
             'mobile' => 'required|string|regex:/^[0-9]{10}$/',
         ]);
 
-        $result = $this->firebaseService->sendOtp($request->mobile);
+        // Use SMS service instead of Firebase
+        $result = $this->smsService->sendOtp($request->mobile);
         
         return response()->json($result);
     }
@@ -36,7 +40,8 @@ class AuthController extends Controller
             'otp' => 'required|string|size:6',
         ]);
 
-        $result = $this->firebaseService->verifyOtp($request->mobile, $request->otp);
+        // Use SMS service instead of Firebase
+        $result = $this->smsService->verifyOtp($request->mobile, $request->otp);
         
         if (!$result['success']) {
             throw ValidationException::withMessages([
@@ -112,7 +117,7 @@ class AuthController extends Controller
             $user = Auth::user();
         } else {
             // Mobile/OTP login
-            $result = $this->firebaseService->verifyOtp($request->mobile, $request->otp, true);
+            $result = $this->smsService->verifyOtp($request->mobile, $request->otp, true);
             
             if (!$result['success']) {
                 throw ValidationException::withMessages([

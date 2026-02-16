@@ -16,6 +16,8 @@ class DatabaseSeeder extends Seeder
         $this->call([
             ComprehensiveSeeder::class,
             BandLevelSeeder::class,
+            ProductionIELTSQuestionsSeeder::class,
+            ProductionMockTestsSeeder::class,
         ]);
     }
 }

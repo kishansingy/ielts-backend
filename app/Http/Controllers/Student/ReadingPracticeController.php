@@ -17,7 +17,10 @@ class ReadingPracticeController extends Controller
      */
     public function index(Request $request)
     {
-        $query = ReadingPassage::with(['questions']);
+        $query = ReadingPassage::with(['questions' => function($q) {
+            // Hide correct answers in the list view
+            $q->select('id', 'passage_id', 'question_text', 'question_type', 'options', 'points');
+        }]);
         
         // Filter by difficulty if provided
         if ($request->has('difficulty')) {

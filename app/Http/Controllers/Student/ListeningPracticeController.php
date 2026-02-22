@@ -17,7 +17,10 @@ class ListeningPracticeController extends Controller
      */
     public function index(Request $request)
     {
-        $query = ListeningExercise::with(['questions']);
+        $query = ListeningExercise::with(['questions' => function($q) {
+            // Hide correct answers in the list view
+            $q->select('id', 'listening_exercise_id', 'question_text', 'question_type', 'options', 'points');
+        }]);
         
         // Filter by difficulty if provided
         if ($request->has('difficulty')) {

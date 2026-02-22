@@ -24,6 +24,13 @@ class Question extends Model
         'is_retired',
     ];
 
+    /**
+     * Hide correct_answer from JSON responses by default
+     */
+    protected $hidden = [
+        'correct_answer',
+    ];
+
     protected $casts = [
         'options' => 'array',
         'points' => 'integer',

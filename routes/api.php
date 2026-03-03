@@ -248,6 +248,15 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::get('/performance', [App\Http\Controllers\Admin\DashboardController::class, 'performanceMetrics']);
         });
         
+        // Login Activity Management (Admin Only)
+        Route::prefix('login-activities')->group(function () {
+            Route::get('/', [App\Http\Controllers\Admin\LoginActivityController::class, 'index']);
+            Route::get('/stats', [App\Http\Controllers\Admin\LoginActivityController::class, 'getStats']);
+            Route::get('/user/{userId}', [App\Http\Controllers\Admin\LoginActivityController::class, 'getUserActivities']);
+            Route::get('/failed-attempts', [App\Http\Controllers\Admin\LoginActivityController::class, 'getFailedAttempts']);
+            Route::delete('/{id}', [App\Http\Controllers\Admin\LoginActivityController::class, 'destroy']);
+        });
+        
         // File management routes
         Route::prefix('files')->group(function () {
             Route::get('/', [App\Http\Controllers\Admin\FileManagementController::class, 'index']);

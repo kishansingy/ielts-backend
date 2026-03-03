@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use App\Services\FirebaseService;
 use App\Services\SmsService;
+use App\Services\LoginActivityService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -14,11 +15,16 @@ class AuthController extends Controller
 {
     protected $firebaseService;
     protected $smsService;
+    protected $loginActivityService;
 
-    public function __construct(FirebaseService $firebaseService, SmsService $smsService)
-    {
+    public function __construct(
+        FirebaseService $firebaseService, 
+        SmsService $smsService,
+        LoginActivityService $loginActivityService
+    ) {
         $this->firebaseService = $firebaseService;
         $this->smsService = $smsService;
+        $this->loginActivityService = $loginActivityService;
     }
 
     public function sendOtp(Request $request)
@@ -166,52 +172,74 @@ class AuthController extends Controller
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
             \Log::error('Validation failed: ' . json_encode($e->errors()));
+            $this->loginActivityService->logFailedLogin($request, 'Validation failed: ' . json_encode($e->errors()));
             throw $e;
         }
 
         $user = null;
 
-        if ($request->login_type === 'email') {
-            // Email/Password login
-            if (!Auth::attempt($request->only('email', 'password'))) {
-                \Log::error('Authentication failed for: ' . $request->email);
-                throw ValidationException::withMessages([
-                    'email' => ['The provided credentials are incorrect.'],
-                ]);
-            }
-            $user = Auth::user();
-        } else {
-            // Mobile/OTP login
-            $result = $this->smsService->verifyOtp($request->mobile, $request->otp, true);
-            
-            if (!$result['success']) {
-                throw ValidationException::withMessages([
-                    'otp' => [$result['message']],
-                ]);
+        try {
+            if ($request->login_type === 'email') {
+                // Email/Password login
+                if (!Auth::attempt($request->only('email', 'password'))) {
+                    \Log::error('Authentication failed for: ' . $request->email);
+                    $this->loginActivityService->logFailedLogin($request, 'Invalid email or password');
+                    throw ValidationException::withMessages([
+                        'email' => ['The provided credentials are incorrect.'],
+                    ]);
+                }
+                $user = Auth::user();
+            } else {
+                // Mobile/OTP login
+                $result = $this->smsService->verifyOtp($request->mobile, $request->otp, true);
+                
+                if (!$result['success']) {
+                    $this->loginActivityService->logFailedLogin($request, 'Invalid OTP: ' . $result['message']);
+                    throw ValidationException::withMessages([
+                        'otp' => [$result['message']],
+                    ]);
+                }
+
+                $user = User::where('mobile', $request->mobile)->first();
+                
+                if (!$user) {
+                    $this->loginActivityService->logFailedLogin($request, 'Mobile number not registered');
+                    throw ValidationException::withMessages([
+                        'mobile' => ['No account found with this mobile number.'],
+                    ]);
+                }
             }
 
-            $user = User::where('mobile', $request->mobile)->first();
-            
-            if (!$user) {
-                throw ValidationException::withMessages([
-                    'mobile' => ['No account found with this mobile number.'],
-                ]);
+            // Create token with 7 days expiration
+            $token = $user->createToken('auth-token', ['*'], now()->addDays(7))->plainTextToken;
+
+            // Log successful login
+            $this->loginActivityService->logSuccessfulLogin($request, $user);
+
+            \Log::info('Login successful for user: ' . ($user->email ?? $user->mobile));
+
+            return response()->json([
+                'user' => $user,
+                'token' => $token,
+                'expires_at' => now()->addDays(7)->toIso8601String(),
+            ])->header('Access-Control-Allow-Origin', $request->header('Origin'))
+              ->header('Access-Control-Allow-Credentials', 'true');
+        } catch (\Exception $e) {
+            if (!($e instanceof ValidationException)) {
+                $this->loginActivityService->logFailedLogin($request, $e->getMessage());
             }
+            throw $e;
         }
-
-        $token = $user->createToken('auth-token')->plainTextToken;
-
-        \Log::info('Login successful for user: ' . $user->email);
-
-        return response()->json([
-            'user' => $user,
-            'token' => $token,
-        ])->header('Access-Control-Allow-Origin', $request->header('Origin'))
-          ->header('Access-Control-Allow-Credentials', 'true');
     }
 
     public function logout(Request $request)
     {
+        $user = $request->user();
+        
+        // Log the logout activity
+        $this->loginActivityService->logLogout($request, $user);
+        
+        // Delete the current access token
         $request->user()->currentAccessToken()->delete();
 
         return response()->json(['message' => 'Logged out successfully']);

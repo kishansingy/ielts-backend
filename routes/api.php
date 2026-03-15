@@ -266,6 +266,15 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::get('/info', [App\Http\Controllers\Admin\FileManagementController::class, 'fileInfo']);
             Route::post('/cleanup', [App\Http\Controllers\Admin\FileManagementController::class, 'cleanup']);
         });
+
+        // AI Generation Settings routes
+        Route::prefix('ai-settings')->group(function () {
+            Route::get('/', [App\Http\Controllers\Admin\AiSettingsController::class, 'index']);
+            Route::get('/dashboard', [App\Http\Controllers\Admin\AiSettingsController::class, 'dashboard']);
+            Route::put('/{key}', [App\Http\Controllers\Admin\AiSettingsController::class, 'update']);
+            Route::post('/toggle-daily-generation', [App\Http\Controllers\Admin\AiSettingsController::class, 'toggleDailyGeneration']);
+            Route::post('/update-schedule', [App\Http\Controllers\Admin\AiSettingsController::class, 'updateSchedule']);
+        });
     });
     
     // Mock Test routes for students
@@ -287,6 +296,17 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/generation-history', [App\Http\Controllers\AIQuestionController::class, 'getGenerationHistory']);
         Route::get('/system-status', [App\Http\Controllers\AIQuestionController::class, 'getSystemStatus']);
         Route::post('/retry-openai', [App\Http\Controllers\AIQuestionController::class, 'retryOpenAI']);
+    });
+
+    // Gemini AI routes
+    Route::prefix('gemini')->group(function () {
+        Route::post('/preview', [App\Http\Controllers\GeminiAIController::class, 'preview']);
+        Route::post('/mock-tests/{mockTest}/generate', [App\Http\Controllers\GeminiAIController::class, 'generateForMockTest']);
+        Route::post('/evaluate/writing', [App\Http\Controllers\GeminiAIController::class, 'evaluateWriting']);
+        Route::post('/evaluate/speaking', [App\Http\Controllers\GeminiAIController::class, 'evaluateSpeaking']);
+        Route::get('/stats', [App\Http\Controllers\GeminiAIController::class, 'stats']);
+        Route::get('/usage-stats', [App\Http\Controllers\GeminiAIController::class, 'usageStats']);
+        Route::post('/chat', [App\Http\Controllers\GeminiAIController::class, 'chat']);
     });
 
     // Band Level Management routes

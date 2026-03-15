@@ -22,6 +22,13 @@ class Kernel extends ConsoleKernel
                  ->runInBackground()
                  ->appendOutputTo(storage_path('logs/vocabulary-notifications.log'));
 
+        // Generate daily AI questions at 2:00 AM every day (Free tier friendly)
+        $schedule->command('ai:generate-daily-questions --module=all --band=all --count=5')
+                 ->dailyAt('02:00')
+                 ->withoutOverlapping()
+                 ->runInBackground()
+                 ->appendOutputTo(storage_path('logs/ai-question-generation.log'));
+
         // Cleanup old notification devices (inactive for 30+ days)
         $schedule->call(function () {
             \App\Models\NotificationDevice::where('is_active', false)

@@ -36,6 +36,12 @@ return [
         'model' => env('OPENAI_MODEL', 'gpt-4'),
     ],
 
+    'gemini' => [
+        'api_key' => env('GEMINI_API_KEY'),
+        'base_url' => env('GEMINI_BASE_URL', 'https://generativelanguage.googleapis.com/v1beta'),
+        'model' => env('GEMINI_MODEL', 'gemini-2.5-flash'),
+    ],
+
     // Firebase Cloud Messaging (FCM) for mobile notifications
     'fcm' => [
         'server_key' => env('FCM_SERVER_KEY'),

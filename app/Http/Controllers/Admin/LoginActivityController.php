@@ -19,30 +19,30 @@ class LoginActivityController extends Controller
             ->orderBy('created_at', 'desc');
 
         // Filter by status
-        if ($request->has('status')) {
+        if ($request->filled('status')) {
             $query->where('status', $request->status);
         }
 
         // Filter by device type
-        if ($request->has('device_type')) {
+        if ($request->filled('device_type')) {
             $query->where('device_type', $request->device_type);
         }
 
         // Filter by user
-        if ($request->has('user_id')) {
+        if ($request->filled('user_id')) {
             $query->where('user_id', $request->user_id);
         }
 
         // Filter by date range
-        if ($request->has('from_date')) {
+        if ($request->filled('from_date')) {
             $query->whereDate('created_at', '>=', $request->from_date);
         }
-        if ($request->has('to_date')) {
+        if ($request->filled('to_date')) {
             $query->whereDate('created_at', '<=', $request->to_date);
         }
 
         // Search by email or mobile
-        if ($request->has('search')) {
+        if ($request->filled('search')) {
             $search = $request->search;
             $query->where(function($q) use ($search) {
                 $q->where('email', 'like', "%{$search}%")

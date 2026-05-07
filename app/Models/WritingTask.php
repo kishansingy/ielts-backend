@@ -18,11 +18,14 @@ class WritingTask extends Model
         'word_limit',
         'band_level',
         'created_by',
+        'model_answer',
+        'evaluation_criteria',
+        'source',
     ];
-
     protected $casts = [
         'time_limit' => 'integer',
         'word_limit' => 'integer',
+        'evaluation_criteria' => 'array',
     ];
 
     /**

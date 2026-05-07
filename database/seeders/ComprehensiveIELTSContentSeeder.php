@@ -14,7 +14,7 @@ use Illuminate\Support\Facades\DB;
 
 class ComprehensiveIELTSContentSeeder extends Seeder
 {
-    private $bandLevels = ['band6', 'band7', 'band8', 'band9'];
+    private $bandLevels = ['band6.5', 'band7', 'band7.5', 'band8'];
     private $testsPerBand = 50; // 50 tests per band level
     
     /**

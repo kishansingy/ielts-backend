@@ -17,11 +17,13 @@ class SpeakingPrompt extends Model
         'difficulty_level',
         'band_level',
         'created_by',
+        'follow_up_questions',
+        'source',
     ];
-
     protected $casts = [
-        'preparation_time' => 'integer',
-        'response_time' => 'integer',
+        'preparation_time'    => 'integer',
+        'response_time'       => 'integer',
+        'follow_up_questions' => 'array',
     ];
 
     /**

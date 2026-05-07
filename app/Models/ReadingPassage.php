@@ -16,6 +16,7 @@ class ReadingPassage extends Model
         'band_level',
         'time_limit',
         'created_by',
+        'source',
     ];
 
     protected $casts = [

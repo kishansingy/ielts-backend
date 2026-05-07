@@ -18,6 +18,7 @@ class DatabaseSeeder extends Seeder
             BandLevelSeeder::class,
             ProductionIELTSQuestionsSeeder::class,
             ProductionMockTestsSeeder::class,
+            InitialMockTestSeeder::class,
         ]);
     }
 }

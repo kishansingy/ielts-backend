@@ -17,8 +17,8 @@ class ListeningExercise extends Model
         'difficulty_level',
         'band_level',
         'created_by',
+        'source',
     ];
-
     protected $casts = [
         'duration' => 'integer',
     ];

@@ -21,11 +21,13 @@ class MockTestAttempt extends Model
         'listening_score',
         'speaking_score',
         'overall_band',
+        'ai_feedback',
     ];
 
     protected $casts = [
         'started_at' => 'datetime',
         'completed_at' => 'datetime',
+        'ai_feedback' => 'array',
     ];
 
     public function user()

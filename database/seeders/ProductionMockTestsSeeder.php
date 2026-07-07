@@ -73,40 +73,37 @@ class ProductionMockTestsSeeder extends Seeder
 
     /**
      * Add Reading section to mock test
+     * Only uses passages not already assigned to another mock test of the same band
      */
     private function addReadingSection($mockTest, $bandLevel, $testNumber, $adminUser)
     {
-        // Get or create reading passages for this test
+        // Get IDs already used in any mock test for this band
+        $usedIds = MockTestSection::where('module_type', 'reading')
+            ->whereHas('mockTest', fn($q) => $q->where('band_level', $bandLevel))
+            ->pluck('content_id')
+            ->unique()
+            ->toArray();
+
+        // Get unused passages first
         $passages = ReadingPassage::where('band_level', $bandLevel)
+            ->whereNotIn('id', $usedIds)
             ->with('questions')
-            ->skip(($testNumber - 1) * 3)
             ->take(3)
             ->get();
 
-        if ($passages->count() < 3) {
-            // Create additional passages if needed
-            for ($i = $passages->count(); $i < 3; $i++) {
-                $passage = ReadingPassage::create([
-                    'title' => "Reading Passage " . ($i + 1) . " - Test {$testNumber}",
-                    'content' => $this->getReadingContent($bandLevel, $testNumber, $i + 1),
-                    'difficulty_level' => $this->getDifficultyLevel($bandLevel),
-                    'band_level' => $bandLevel,
-                    'time_limit' => 20,
-                    'created_by' => $adminUser->id,
-                ]);
-                
-                // Create 5 questions for this passage
-                $this->createQuestionsForPassage($passage, $bandLevel, $i + 1);
-                
-                $passages->push($passage);
-            }
-        } else {
-            // Check if existing passages have questions, if not create them
-            foreach ($passages as $passage) {
-                if ($passage->questions->count() === 0) {
-                    $this->createQuestionsForPassage($passage, $bandLevel, 1);
-                }
-            }
+        // If not enough unused passages, create new ones
+        for ($i = $passages->count(); $i < 3; $i++) {
+            $passageNumber = $i + 1;
+            $passage = ReadingPassage::create([
+                'title' => $this->getReadingTitle($testNumber, $passageNumber),
+                'content' => $this->getReadingContent($bandLevel, $testNumber, $passageNumber),
+                'difficulty_level' => $this->getDifficultyLevel($bandLevel),
+                'band_level' => $bandLevel,
+                'time_limit' => 20,
+                'created_by' => $adminUser->id,
+            ]);
+            $this->createQuestionsForPassage($passage, $bandLevel, $passageNumber);
+            $passages->push($passage);
         }
 
         $order = 1;
@@ -124,43 +121,37 @@ class ProductionMockTestsSeeder extends Seeder
 
     /**
      * Add Listening section to mock test
+     * Only uses exercises not already assigned to another mock test of the same band
      */
     private function addListeningSection($mockTest, $bandLevel, $testNumber, $adminUser)
     {
-        // Get or create listening exercises
+        $usedIds = MockTestSection::where('module_type', 'listening')
+            ->whereHas('mockTest', fn($q) => $q->where('band_level', $bandLevel))
+            ->pluck('content_id')
+            ->unique()
+            ->toArray();
+
         $exercises = ListeningExercise::where('band_level', $bandLevel)
+            ->whereNotIn('id', $usedIds)
             ->with('questions')
-            ->skip(($testNumber - 1) * 4)
-            ->take(4)
+            ->take(1)
             ->get();
 
-        if ($exercises->count() < 4) {
-            for ($i = $exercises->count(); $i < 4; $i++) {
-                $exercise = ListeningExercise::create([
-                    'title' => "Listening Section " . ($i + 1) . " - Test {$testNumber}",
-                    'audio_file_path' => "listening/mock_test_{$testNumber}_section_" . ($i + 1) . ".mp3",
-                    'transcript' => $this->getListeningTranscript($bandLevel, $testNumber, $i + 1),
-                    'duration' => 180,
-                    'difficulty_level' => $this->getDifficultyLevel($bandLevel),
-                    'band_level' => $bandLevel,
-                    'created_by' => $adminUser->id,
-                ]);
-                
-                // Create 5 questions for this exercise
-                $this->createQuestionsForListening($exercise, $i + 1);
-                
-                $exercises->push($exercise);
-            }
-        } else {
-            // Check if existing exercises have questions, if not create them
-            foreach ($exercises as $exercise) {
-                if ($exercise->questions->count() === 0) {
-                    $this->createQuestionsForListening($exercise, 1);
-                }
-            }
+        if ($exercises->isEmpty()) {
+            $exercise = ListeningExercise::create([
+                'title' => $this->getListeningTitle($bandLevel, $testNumber),
+                'audio_file_path' => "listening/mock_test_{$testNumber}_band_{$bandLevel}.mp3",
+                'transcript' => $this->getListeningTranscript($bandLevel, $testNumber, 1),
+                'duration' => 180,
+                'difficulty_level' => $this->getDifficultyLevel($bandLevel),
+                'band_level' => $bandLevel,
+                'created_by' => $adminUser->id,
+            ]);
+            $this->createQuestionsForListening($exercise, $testNumber);
+            $exercises->push($exercise);
         }
 
-        $order = 4; // After reading sections
+        $order = 4;
         foreach ($exercises as $exercise) {
             MockTestSection::create([
                 'mock_test_id' => $mockTest->id,
@@ -168,27 +159,40 @@ class ProductionMockTestsSeeder extends Seeder
                 'content_id' => $exercise->id,
                 'content_type' => ListeningExercise::class,
                 'order' => $order++,
-                'duration_minutes' => 10,
+                'duration_minutes' => 30,
             ]);
         }
     }
 
     /**
      * Add Writing section to mock test
+     * Reuses existing tasks by cycling, but never duplicates within the same mock test
      */
     private function addWritingSection($mockTest, $bandLevel, $testNumber, $adminUser)
     {
-        // Task 1
-        $task1 = WritingTask::create([
-            'title' => "Writing Task 1 - Mock Test {$testNumber}",
-            'task_type' => 'task1',
-            'prompt' => $this->getWritingTask1Prompt($testNumber),
-            'instructions' => 'Summarize the information by selecting and reporting the main features, and make comparisons where relevant. Write at least 150 words.',
-            'time_limit' => 20,
-            'word_limit' => 150,
-            'band_level' => $bandLevel,
-            'created_by' => $adminUser->id,
-        ]);
+        // Try to reuse existing task1 not used in this same mock test
+        $usedInThisTest = MockTestSection::where('mock_test_id', $mockTest->id)
+            ->where('module_type', 'writing')
+            ->pluck('content_id')
+            ->toArray();
+
+        $task1 = WritingTask::where('band_level', $bandLevel)
+            ->where('task_type', 'task1')
+            ->whereNotIn('id', $usedInThisTest)
+            ->first();
+
+        if (!$task1) {
+            $task1 = WritingTask::create([
+                'title' => "Writing Task 1 - {$bandLevel} Test {$testNumber}",
+                'task_type' => 'task1',
+                'prompt' => $this->getWritingTask1Prompt($testNumber),
+                'instructions' => 'Summarize the information by selecting and reporting the main features, and make comparisons where relevant. Write at least 150 words.',
+                'time_limit' => 20,
+                'word_limit' => 150,
+                'band_level' => $bandLevel,
+                'created_by' => $adminUser->id,
+            ]);
+        }
 
         MockTestSection::create([
             'mock_test_id' => $mockTest->id,
@@ -199,17 +203,25 @@ class ProductionMockTestsSeeder extends Seeder
             'duration_minutes' => 20,
         ]);
 
-        // Task 2
-        $task2 = WritingTask::create([
-            'title' => "Writing Task 2 - Mock Test {$testNumber}",
-            'task_type' => 'task2',
-            'prompt' => $this->getWritingTask2Prompt($testNumber),
-            'instructions' => 'Give reasons for your answer and include any relevant examples from your own knowledge or experience. Write at least 250 words.',
-            'time_limit' => 40,
-            'word_limit' => 250,
-            'band_level' => $bandLevel,
-            'created_by' => $adminUser->id,
-        ]);
+        $usedInThisTest[] = $task1->id;
+
+        $task2 = WritingTask::where('band_level', $bandLevel)
+            ->where('task_type', 'task2')
+            ->whereNotIn('id', $usedInThisTest)
+            ->first();
+
+        if (!$task2) {
+            $task2 = WritingTask::create([
+                'title' => "Writing Task 2 - {$bandLevel} Test {$testNumber}",
+                'task_type' => 'task2',
+                'prompt' => $this->getWritingTask2Prompt($testNumber),
+                'instructions' => 'Give reasons for your answer and include any relevant examples from your own knowledge or experience. Write at least 250 words.',
+                'time_limit' => 40,
+                'word_limit' => 250,
+                'band_level' => $bandLevel,
+                'created_by' => $adminUser->id,
+            ]);
+        }
 
         MockTestSection::create([
             'mock_test_id' => $mockTest->id,
@@ -223,42 +235,38 @@ class ProductionMockTestsSeeder extends Seeder
 
     /**
      * Add Speaking section to mock test
+     * Reuses existing prompts not already used in this same mock test
      */
     private function addSpeakingSection($mockTest, $bandLevel, $testNumber, $adminUser)
     {
-        // Create 3 speaking prompts (Part 1, 2, 3)
-        $prompts = [
-            [
-                'title' => "Speaking Part 1 - Mock Test {$testNumber}",
-                'prompt' => $this->getSpeakingPart1Prompt($testNumber),
-                'preparation_time' => 0,
-                'response_time' => 240, // 4 minutes
-            ],
-            [
-                'title' => "Speaking Part 2 - Mock Test {$testNumber}",
-                'prompt' => $this->getSpeakingPart2Prompt($testNumber),
-                'preparation_time' => 60,
-                'response_time' => 120, // 2 minutes
-            ],
-            [
-                'title' => "Speaking Part 3 - Mock Test {$testNumber}",
-                'prompt' => $this->getSpeakingPart3Prompt($testNumber),
-                'preparation_time' => 0,
-                'response_time' => 300, // 5 minutes
-            ],
+        $usedInThisTest = [];
+        $order = 10;
+
+        $parts = [
+            ['part' => 1, 'prep' => 0,  'response' => 240, 'prompt_fn' => 'getSpeakingPart1Prompt'],
+            ['part' => 2, 'prep' => 60, 'response' => 120, 'prompt_fn' => 'getSpeakingPart2Prompt'],
+            ['part' => 3, 'prep' => 0,  'response' => 300, 'prompt_fn' => 'getSpeakingPart3Prompt'],
         ];
 
-        $order = 10;
-        foreach ($prompts as $promptData) {
-            $prompt = SpeakingPrompt::create([
-                'title' => $promptData['title'],
-                'prompt_text' => $promptData['prompt'],
-                'preparation_time' => $promptData['preparation_time'],
-                'response_time' => $promptData['response_time'],
-                'difficulty_level' => $this->getDifficultyLevel($bandLevel),
-                'band_level' => $bandLevel,
-                'created_by' => $adminUser->id,
-            ]);
+        foreach ($parts as $partData) {
+            $prompt = SpeakingPrompt::where('band_level', $bandLevel)
+                ->whereNotIn('id', $usedInThisTest)
+                ->where('preparation_time', $partData['prep'])
+                ->first();
+
+            if (!$prompt) {
+                $prompt = SpeakingPrompt::create([
+                    'title' => "Speaking Part {$partData['part']} - {$bandLevel} Test {$testNumber}",
+                    'prompt_text' => $this->{$partData['prompt_fn']}($testNumber),
+                    'preparation_time' => $partData['prep'],
+                    'response_time' => $partData['response'],
+                    'difficulty_level' => $this->getDifficultyLevel($bandLevel),
+                    'band_level' => $bandLevel,
+                    'created_by' => $adminUser->id,
+                ]);
+            }
+
+            $usedInThisTest[] = $prompt->id;
 
             MockTestSection::create([
                 'mock_test_id' => $mockTest->id,
@@ -266,7 +274,7 @@ class ProductionMockTestsSeeder extends Seeder
                 'content_id' => $prompt->id,
                 'content_type' => SpeakingPrompt::class,
                 'order' => $order++,
-                'duration_minutes' => ($promptData['preparation_time'] + $promptData['response_time']) / 60,
+                'duration_minutes' => (int)(($partData['prep'] + $partData['response']) / 60),
             ]);
         }
     }
@@ -285,17 +293,95 @@ class ProductionMockTestsSeeder extends Seeder
     }
 
     /**
+     * Get a meaningful title for a reading passage
+     */
+    private function getReadingTitle($testNumber, $passageNumber)
+    {
+        $titles = [
+            1 => [
+                'The Rise of Artificial Intelligence',
+                'A History of Computing',
+                'The New Space Age',
+            ],
+            2 => [
+                'Biodiversity and Ecosystem Services',
+                'The Threatened Oceans',
+                'Climate Change: Causes and Consequences',
+            ],
+            3 => [
+                'Social Media and Mental Health',
+                'The Psychology of Decision-Making',
+                'Urban Planning for the Future',
+            ],
+        ];
+
+        $titleIndex = ($testNumber - 1) % 3;
+        return $titles[$passageNumber][$titleIndex] ?? "Reading Passage {$passageNumber} - Test {$testNumber}";
+    }
+
+    /**
      * Generate reading content for mock tests
+     * Returns real, unique passage content per topic
      */
     private function getReadingContent($bandLevel, $testNumber, $passageNumber)
     {
-        $topics = [
-            "The passage discusses the evolution of artificial intelligence and its impact on modern society. Machine learning algorithms have transformed industries from healthcare to finance, enabling more accurate predictions and automated decision-making processes.",
-            "This text explores the importance of biodiversity in maintaining ecological balance. Scientists emphasize that protecting diverse ecosystems is crucial for human survival, as they provide essential services like clean air, water purification, and climate regulation.",
-            "The article examines the psychological effects of social media on young adults. Research indicates that excessive use correlates with increased anxiety and depression, while moderate, purposeful engagement can enhance social connections and well-being.",
+        // 3 distinct full passages per topic slot
+        $passages = [
+            1 => [ // Passage 1 topics - Technology / Science
+                "Artificial intelligence (AI) has emerged as one of the most transformative technologies of the twenty-first century. Unlike earlier computing systems that followed rigid, pre-programmed rules, modern AI systems learn from data, identifying patterns and making decisions with minimal human intervention. Machine learning, a subset of AI, has enabled computers to perform tasks once thought to require human intelligence, such as recognising speech, translating languages, and diagnosing diseases from medical images.\n\nThe healthcare sector has been among the first to feel the impact. AI-powered diagnostic tools can now analyse thousands of X-rays or MRI scans in the time it takes a radiologist to review a handful, and with comparable accuracy. In oncology, algorithms trained on millions of patient records can predict which tumours are likely to respond to specific treatments, enabling more personalised care. Hospitals in several countries have begun deploying AI triage systems that assess incoming patients and prioritise those most at risk.\n\nIn finance, algorithmic trading systems execute millions of transactions per second, responding to market signals far faster than any human trader. Fraud detection models scan credit card transactions in real time, flagging anomalies that would take human analysts days to identify. Loan approval processes that once required weeks of manual review can now be completed in minutes, broadening access to credit for underserved populations.\n\nDespite these advances, AI raises profound ethical questions. Algorithmic bias — where systems trained on historical data perpetuate existing inequalities — has been documented in hiring tools, criminal sentencing software, and facial recognition systems. Researchers and policymakers are grappling with how to ensure that AI systems are transparent, accountable, and fair. The European Union has proposed comprehensive AI regulations that would classify systems by risk level and impose strict requirements on high-risk applications.\n\nThe labour market implications are equally contested. Some economists predict that automation will displace millions of workers in manufacturing, logistics, and administrative roles. Others argue that, as with previous technological revolutions, AI will ultimately create more jobs than it destroys by generating new industries and increasing overall productivity. The truth likely lies somewhere in between, with significant disruption concentrated among workers with routine, codifiable skills and new opportunities emerging for those who can collaborate effectively with intelligent systems.\n\nLooking ahead, researchers are pursuing artificial general intelligence (AGI) — systems capable of performing any intellectual task a human can. While most experts believe AGI remains decades away, the pace of progress has accelerated dramatically. Investments in AI research by governments and technology companies reached record levels in recent years, and breakthroughs in areas such as large language models and reinforcement learning have repeatedly surprised even optimistic forecasters.",
+
+                "The history of computing stretches back further than most people realise. Long before the first electronic computers appeared in the 1940s, mathematicians and engineers were designing mechanical devices capable of performing calculations. Charles Babbage's Analytical Engine, conceived in the 1830s, contained many of the conceptual elements of a modern computer, including a processing unit, memory, and the ability to be programmed using punched cards. Although the machine was never completed in Babbage's lifetime, his collaborator Ada Lovelace wrote what is widely regarded as the first computer program.\n\nThe electronic era began in earnest during the Second World War, when governments on both sides of the conflict invested heavily in computing technology for code-breaking and ballistic calculations. The British Colossus, built at Bletchley Park, helped decipher German military communications, while the American ENIAC, completed in 1945, could perform thousands of calculations per second — a speed unimaginable with mechanical devices.\n\nThe invention of the transistor in 1947 at Bell Laboratories marked the beginning of a new phase. Transistors replaced bulky, unreliable vacuum tubes, making computers smaller, cheaper, and more energy-efficient. The subsequent development of integrated circuits, which packed thousands of transistors onto a single silicon chip, triggered an exponential increase in computing power that has continued for more than half a century. Gordon Moore, co-founder of Intel, observed in 1965 that the number of transistors on a chip was doubling approximately every two years — a trend that became known as Moore's Law.\n\nPersonal computing arrived in the 1970s and 1980s, transforming computers from specialised scientific instruments into everyday tools. The Apple II, the IBM PC, and later the Macintosh brought computing into homes and offices around the world. The development of graphical user interfaces, which replaced cryptic text commands with intuitive icons and menus, made computers accessible to people without technical training.\n\nThe internet, originally a network connecting universities and research institutions, became a global communications infrastructure in the 1990s. The World Wide Web, invented by Tim Berners-Lee in 1989, provided a user-friendly interface for navigating the internet's vast resources. Within a decade, e-commerce, online banking, and digital communication had fundamentally altered how people worked, shopped, and socialised.\n\nToday, computing is ubiquitous. Smartphones carry more processing power than the supercomputers of the 1980s. Cloud computing allows individuals and organisations to access vast computational resources on demand. Quantum computing, still in its early stages, promises to solve problems that are intractable for classical computers, with potential applications in drug discovery, materials science, and cryptography.",
+
+                "Space exploration has captivated human imagination since the earliest astronomers turned their eyes to the night sky. The modern era of space exploration began in earnest in 1957, when the Soviet Union launched Sputnik, the world's first artificial satellite. The beeping signal it transmitted as it orbited Earth sent shockwaves through the Western world and ignited the Space Race — a decade-long competition between the superpowers that culminated in the Apollo 11 mission of 1969, when Neil Armstrong and Buzz Aldrin became the first humans to walk on the Moon.\n\nThe scientific returns from space exploration have been immense. Satellites have revolutionised weather forecasting, telecommunications, navigation, and environmental monitoring. The Hubble Space Telescope, launched in 1990, has provided breathtaking images of distant galaxies and helped astronomers determine the age and expansion rate of the universe. Robotic missions to Mars have revealed evidence of ancient river systems and subsurface water ice, raising the tantalising possibility that the planet may once have harboured microbial life.\n\nIn recent years, the space sector has undergone a dramatic transformation. Historically dominated by government agencies such as NASA, the European Space Agency, and Roscosmos, the industry has attracted a wave of private investment. Companies like SpaceX, Blue Origin, and Virgin Galactic have developed reusable rockets that dramatically reduce the cost of reaching orbit. SpaceX's Falcon 9 rocket, which can land its first stage booster for reuse, has cut launch costs by an order of magnitude compared with expendable rockets.\n\nThis commercialisation has opened new possibilities. Satellite constellations like SpaceX's Starlink aim to provide high-speed internet access to remote and underserved areas around the world. Space tourism, once the preserve of science fiction, is becoming a reality, with several companies offering suborbital flights to paying passengers. Asteroid mining, which could yield vast quantities of rare metals and water ice, is being seriously explored by a number of start-ups.\n\nHuman missions beyond low Earth orbit are once again on the agenda. NASA's Artemis programme aims to return astronauts to the Moon by the mid-2020s, with the long-term goal of establishing a sustainable lunar presence. Mars remains the ultimate destination for human exploration, with both NASA and SpaceX developing plans for crewed missions in the 2030s or 2040s. Such missions would require solving formidable technical challenges, including protecting astronauts from cosmic radiation, providing life support for journeys lasting months, and developing reliable systems for landing and ascending from the Martian surface.",
+            ],
+            2 => [ // Passage 2 topics - Environment / Nature
+                "Biodiversity — the variety of life on Earth — underpins the functioning of every ecosystem on the planet. From the microscopic bacteria that decompose organic matter in the soil to the apex predators that regulate prey populations, each species plays a role in maintaining the balance of natural systems. Scientists estimate that Earth is home to between eight and ten million species, of which fewer than two million have been formally described and named. The vast majority remain unknown to science.\n\nThe services that biodiversity provides to humanity are both enormous and largely invisible. Healthy forests regulate the water cycle, absorbing rainfall and releasing it gradually into rivers and aquifers. Wetlands filter pollutants from water and buffer coastal communities against storm surges. Pollinators — bees, butterflies, birds, and bats — are essential for the reproduction of approximately three-quarters of the world's flowering plants, including many of the crops that feed humanity. The economic value of pollination services alone has been estimated at hundreds of billions of dollars annually.\n\nDespite its importance, biodiversity is declining at an alarming rate. The current rate of species extinction is estimated to be between one hundred and one thousand times higher than the natural background rate, leading many scientists to describe the present era as the sixth mass extinction event in Earth's history. The primary drivers are habitat destruction, overexploitation, invasive species, pollution, and climate change. Tropical rainforests, which harbour more than half of all terrestrial species, are being cleared for agriculture and logging at a rate of millions of hectares per year.\n\nConservation efforts have achieved notable successes. The bald eagle, once on the brink of extinction due to hunting and the pesticide DDT, has recovered to healthy population levels following legal protection and habitat restoration. The mountain gorilla, one of the world's most endangered primates, has seen its population grow from fewer than 300 individuals in the 1980s to more than 1,000 today, thanks to intensive conservation programmes in Uganda, Rwanda, and the Democratic Republic of Congo.\n\nHowever, conservation resources remain woefully inadequate relative to the scale of the challenge. Protected areas cover approximately fifteen percent of the Earth's land surface, but many are poorly managed and lack sufficient funding for effective enforcement. The Convention on Biological Diversity, signed by 196 countries, has set ambitious targets for expanding protected areas and reducing the drivers of biodiversity loss, but progress towards these goals has been slow.\n\nAddressing the biodiversity crisis will require fundamental changes in how humanity produces food, manages land, and values nature. Sustainable agriculture practices that reduce the use of pesticides and preserve habitat corridors can help maintain biodiversity in agricultural landscapes. Payment for ecosystem services — compensating landowners for maintaining forests and wetlands — can make conservation economically attractive. Ultimately, protecting biodiversity requires recognising that human well-being depends on the health of the natural systems that sustain all life on Earth.",
+
+                "The world's oceans cover more than seventy percent of the Earth's surface and play a fundamental role in regulating the planet's climate. They absorb approximately a quarter of the carbon dioxide emitted by human activities and generate more than half of the oxygen in the atmosphere, primarily through the photosynthesis of microscopic marine plants called phytoplankton. Ocean currents distribute heat around the globe, moderating temperatures in coastal regions and driving weather patterns far inland.\n\nDespite their importance, the oceans face an unprecedented array of threats. Climate change is warming ocean waters and causing them to become more acidic as they absorb carbon dioxide. Ocean acidification threatens the ability of corals, molluscs, and other marine organisms to build their calcium carbonate shells and skeletons. Coral reefs, which support approximately a quarter of all marine species despite covering less than one percent of the ocean floor, have experienced widespread bleaching events as water temperatures rise.\n\nPlastic pollution has emerged as one of the most visible environmental problems of the modern era. An estimated eight million tonnes of plastic enter the oceans each year, where it breaks down into microplastics that are ingested by marine animals throughout the food chain. Studies have found microplastics in the stomachs of fish, seabirds, and marine mammals, as well as in the tissues of humans who consume seafood. The Great Pacific Garbage Patch, a vast accumulation of plastic debris in the North Pacific Ocean, has become a symbol of the scale of the problem.\n\nOverfishing has depleted fish stocks around the world. The United Nations Food and Agriculture Organization estimates that more than a third of the world's fish stocks are being harvested at biologically unsustainable levels. Industrial fishing fleets equipped with sonar, GPS, and enormous nets can locate and capture fish with an efficiency that leaves populations little chance to recover. Bycatch — the unintended capture of non-target species, including dolphins, sea turtles, and seabirds — causes additional harm to marine ecosystems.\n\nEfforts to protect the oceans have gained momentum in recent years. Marine protected areas, which restrict or prohibit fishing and other extractive activities, have been established in many parts of the world. Research has shown that well-enforced marine reserves can dramatically increase fish biomass and biodiversity within their boundaries, with benefits spilling over into adjacent areas. International agreements to reduce plastic pollution and regulate fishing are being negotiated, though progress has been slow.\n\nThe deep ocean remains one of the least explored environments on Earth. More than eighty percent of the ocean floor has never been mapped in detail, and new species are regularly discovered in the abyssal depths. This unexplored frontier may hold valuable resources, including mineral deposits and novel compounds with pharmaceutical applications, but it also faces growing threats from deep-sea mining and other industrial activities.",
+
+                "Climate change represents one of the most complex and consequential challenges facing humanity in the twenty-first century. The scientific consensus, based on decades of research and thousands of studies, is unequivocal: the Earth's climate is warming, and human activities — primarily the burning of fossil fuels and deforestation — are the dominant cause. The concentration of carbon dioxide in the atmosphere has risen from approximately 280 parts per million before the Industrial Revolution to more than 420 parts per million today, a level not seen for at least three million years.\n\nThe consequences of this warming are already being felt around the world. Global average temperatures have risen by approximately 1.1 degrees Celsius above pre-industrial levels, and the effects are not evenly distributed. The Arctic is warming at more than twice the global average rate, causing dramatic reductions in sea ice extent and threatening the survival of species such as polar bears and walruses. Glaciers on every continent are retreating, reducing freshwater supplies for millions of people who depend on glacial meltwater for drinking water and irrigation.\n\nExtreme weather events are becoming more frequent and intense. Heatwaves that would once have occurred once in fifty years are now happening every decade in many regions. Intense rainfall events are becoming more common as a warmer atmosphere holds more moisture. Tropical cyclones are intensifying more rapidly and producing more rainfall. Droughts are becoming more severe in already arid regions, threatening food security and driving migration.\n\nSea level rise poses an existential threat to low-lying coastal areas and small island nations. Global average sea levels have risen by approximately twenty centimetres since 1900, and the rate of rise is accelerating as ice sheets in Greenland and Antarctica melt. By the end of this century, sea levels could rise by a metre or more under high-emissions scenarios, inundating coastal cities and displacing hundreds of millions of people.\n\nThe Paris Agreement, adopted in 2015, committed countries to limiting global warming to well below two degrees Celsius above pre-industrial levels, with efforts to limit warming to 1.5 degrees. Achieving these targets requires rapid and deep reductions in greenhouse gas emissions across all sectors of the economy. The transition to renewable energy is accelerating, with solar and wind power now the cheapest sources of new electricity generation in most of the world. However, the pace of transition remains insufficient to meet the Paris targets, and current national commitments would lead to warming of approximately 2.7 degrees by the end of the century.",
+            ],
+            3 => [ // Passage 3 topics - Society / Psychology
+                "Social media platforms have fundamentally altered the way people communicate, consume information, and present themselves to the world. Since the launch of Facebook in 2004 and the subsequent emergence of Twitter, Instagram, YouTube, and TikTok, billions of people have adopted these platforms as primary channels for social interaction, news consumption, and self-expression. The average person now spends more than two hours per day on social media, a figure that rises significantly among teenagers and young adults.\n\nThe psychological effects of social media use have been the subject of intense research and debate. Studies have found associations between heavy social media use and increased rates of anxiety, depression, and loneliness, particularly among adolescents. Researchers have proposed several mechanisms to explain these associations. Social comparison — measuring oneself against the carefully curated highlight reels that others post — can generate feelings of inadequacy and envy. The intermittent reinforcement provided by likes, comments, and shares activates the brain's reward system in ways that can lead to compulsive checking behaviour.\n\nHowever, the relationship between social media and mental health is complex and not uniformly negative. For many people, particularly those who are geographically isolated or belong to marginalised groups, social media provides a vital source of community and support. LGBTQ+ youth in conservative communities, people with rare medical conditions, and individuals with niche interests have all found online communities that provide connection and validation unavailable in their immediate physical environment.\n\nThe spread of misinformation through social media has emerged as a major societal concern. False and misleading content spreads faster and further than accurate information on social platforms, partly because it tends to be more emotionally engaging. During the COVID-19 pandemic, health misinformation spread rapidly on social media, undermining public health efforts and contributing to vaccine hesitancy. Political misinformation has been implicated in the erosion of trust in democratic institutions and the polarisation of public opinion.\n\nSocial media companies have faced growing pressure from governments, researchers, and civil society to address these harms. Platforms have implemented measures to label false content, reduce the amplification of misinformation, and provide users with tools to manage their usage. However, critics argue that these measures are insufficient and that the fundamental business model of social media — which depends on maximising engagement and therefore favours emotionally provocative content — is incompatible with the goal of promoting healthy online environments.\n\nRegulatory responses have varied across jurisdictions. The European Union's Digital Services Act, which came into force in 2023, imposes significant obligations on large platforms, including requirements to assess and mitigate systemic risks, provide transparency about algorithmic recommendation systems, and give users more control over their online experience. In the United States, legislative efforts to reform social media have been hampered by political disagreements and concerns about free speech.",
+
+                "The psychology of decision-making has been transformed by decades of research revealing the systematic ways in which human judgment deviates from the rational model assumed by classical economics. The work of psychologists Daniel Kahneman and Amos Tversky, which earned Kahneman the Nobel Prize in Economics in 2002, demonstrated that people rely on mental shortcuts, or heuristics, that often lead to predictable errors.\n\nOne of the most influential concepts in behavioural economics is the distinction between two modes of thinking. System 1 thinking is fast, automatic, and intuitive — it operates below the level of conscious awareness and draws on pattern recognition and emotional responses. System 2 thinking is slow, deliberate, and analytical — it requires conscious effort and is used for complex reasoning and careful evaluation. Most everyday decisions are made by System 1, which is efficient but prone to biases.\n\nAnchoring is one of the most robust cognitive biases. When people are asked to estimate an unknown quantity, their judgments are heavily influenced by any number they have recently encountered, even if that number is clearly irrelevant. In one classic experiment, participants who were asked to spin a wheel of fortune before estimating the percentage of African countries in the United Nations gave significantly higher estimates if the wheel had stopped at a high number. The anchor had unconsciously influenced their judgment.\n\nLoss aversion — the tendency to feel losses more acutely than equivalent gains — has profound implications for economic behaviour. Research suggests that the pain of losing a sum of money is approximately twice as intense as the pleasure of gaining the same amount. This asymmetry leads people to make suboptimal decisions, such as holding onto losing investments in the hope of breaking even, or refusing to accept a fair gamble because the potential loss looms larger than the potential gain.\n\nThe concept of choice architecture — the way in which options are presented — has given rise to the field of nudge theory. By changing the default option, the order in which choices are presented, or the framing of information, policymakers can significantly influence behaviour without restricting freedom of choice. Opt-out organ donation systems, which make donation the default unless individuals actively choose otherwise, have dramatically increased donation rates in countries that have adopted them. Automatic enrolment in pension schemes has similarly increased retirement savings rates.\n\nBehavioural insights are increasingly being applied in public policy, healthcare, and business. Governments around the world have established behavioural insights teams to apply these principles to challenges ranging from tax compliance to energy conservation. However, critics have raised concerns about the paternalistic implications of nudging and the potential for these techniques to be used manipulatively by corporations and governments.",
+
+                "Urban planning has evolved dramatically over the past century, shifting from a focus on functional efficiency to a more holistic concern with livability, sustainability, and social equity. The modernist planning movement of the mid-twentieth century, influenced by architects such as Le Corbusier, favoured the separation of land uses, the demolition of dense urban neighbourhoods, and the construction of high-rise housing towers surrounded by open space. These ideas, implemented in cities around the world, often produced environments that were alienating and socially dysfunctional.\n\nThe reaction against modernist planning gave rise to the New Urbanism movement, which advocates for compact, walkable, mixed-use neighbourhoods modelled on traditional town planning principles. New Urbanist developments prioritise pedestrian-friendly streets, a mix of housing types and price points, and the integration of shops, workplaces, and public spaces within walking distance of homes. Proponents argue that such environments foster social interaction, reduce car dependence, and support more sustainable lifestyles.\n\nThe concept of the fifteen-minute city, popularised by the French-Colombian urbanist Carlos Moreno, has gained significant traction in recent years. The idea is that all essential services — work, shopping, healthcare, education, and recreation — should be accessible within a fifteen-minute walk or cycle ride from home. Paris has adopted this concept as a guiding principle for urban development, investing in cycling infrastructure, converting car lanes to pedestrian and cycling paths, and encouraging the diversification of neighbourhood functions.\n\nGreen infrastructure has become an increasingly important element of urban planning. Trees, parks, green roofs, and urban wetlands provide a range of benefits, including cooling cities during heatwaves, managing stormwater, improving air quality, and supporting biodiversity. Research has shown that access to green space is associated with improved mental and physical health outcomes. Cities such as Singapore and Medellín have become internationally recognised for their innovative approaches to integrating nature into the urban fabric.\n\nHousing affordability has emerged as one of the most pressing challenges facing cities in many parts of the world. Rapid urbanisation, combined with restrictive zoning regulations that limit housing supply, has driven up property prices in many major cities to levels that are unaffordable for large segments of the population. The resulting displacement of lower-income residents from central urban areas has exacerbated social segregation and increased commuting distances.\n\nSmart city technologies — sensors, data analytics, and digital platforms — are being deployed in cities around the world to improve the efficiency of urban services and enhance the quality of life for residents. Traffic management systems that respond in real time to congestion, smart energy grids that balance supply and demand, and digital platforms that enable citizens to report problems and engage with local government are among the applications being piloted. However, concerns about data privacy, surveillance, and the digital divide have tempered enthusiasm for some of these technologies.",
+            ],
         ];
-        
-        return $topics[($passageNumber - 1) % count($topics)] . " [Test {$testNumber}, Passage {$passageNumber} for {$bandLevel}]";
+
+        $passageIndex = ($testNumber - 1) % 3; // Cycle through 3 unique texts per slot
+        return $passages[$passageNumber][$passageIndex] ?? $passages[1][0];
+    }
+
+    /**
+     * Get a meaningful title for a listening exercise
+     */
+    private function getListeningTitle($bandLevel, $testNumber)
+    {
+        $titles = [
+            'A Conversation About Course Registration',
+            'A Lecture on Climate Change',
+            'A Discussion on Project Planning',
+            'An Interview on Renewable Energy',
+            'A Talk on Urban Transport',
+            'A Seminar on Digital Marketing',
+            'A Conversation About Travel Plans',
+            'A Lecture on Human Psychology',
+            'A Discussion on Environmental Policy',
+            'An Interview on Career Development',
+            'A Talk on Healthy Lifestyles',
+            'A Seminar on Global Economics',
+            'A Conversation About Housing',
+            'A Lecture on Space Exploration',
+            'A Discussion on Education Reform',
+            'An Interview on Technology Trends',
+            'A Talk on Cultural Heritage',
+            'A Seminar on Medical Research',
+            'A Conversation About Community Projects',
+            'A Lecture on Biodiversity',
+        ];
+        return $titles[($testNumber - 1) % count($titles)] . " ({$bandLevel})";
     }
 
     /**
@@ -470,18 +556,87 @@ class ProductionMockTestsSeeder extends Seeder
     
     /**
      * Create questions for a reading passage
+     * Questions are matched to the actual passage content
      */
     private function createQuestionsForPassage($passage, $bandLevel, $passageNumber)
     {
-        $questions = [
-            ['text' => 'What is the main topic of this passage?', 'type' => 'fill_blank', 'answer' => 'artificial intelligence'],
-            ['text' => 'According to the passage, which industries have been transformed?', 'type' => 'multiple_choice', 'answer' => 'healthcare and finance', 'options' => ['education and retail', 'healthcare and finance', 'agriculture and mining', 'tourism and hospitality']],
-            ['text' => 'Machine learning enables what type of processes?', 'type' => 'fill_blank', 'answer' => 'automated decision-making'],
-            ['text' => 'The passage discusses predictions that are more what?', 'type' => 'multiple_choice', 'answer' => 'accurate', 'options' => ['expensive', 'accurate', 'complex', 'simple']],
-            ['text' => 'What has transformed industries according to the text?', 'type' => 'fill_blank', 'answer' => 'machine learning algorithms'],
+        // Question sets matched to each passage slot
+        $questionSets = [
+            1 => [ // Technology / Science passages
+                [
+                    ['text' => 'What is the main subject of this passage?', 'type' => 'fill_blank', 'answer' => 'artificial intelligence'],
+                    ['text' => 'According to the passage, which industries have been transformed by AI?', 'type' => 'multiple_choice', 'answer' => 'healthcare and finance', 'options' => ['education and retail', 'healthcare and finance', 'agriculture and mining', 'tourism and hospitality']],
+                    ['text' => 'Machine learning algorithms enable more accurate what?', 'type' => 'fill_blank', 'answer' => 'predictions'],
+                    ['text' => 'AI systems learn from data rather than following pre-programmed rules.', 'type' => 'true_false', 'answer' => 'TRUE'],
+                    ['text' => 'What term describes systems capable of performing any intellectual task a human can?', 'type' => 'fill_blank', 'answer' => 'artificial general intelligence'],
+                ],
+                [
+                    ['text' => 'Who is credited with designing the Analytical Engine?', 'type' => 'fill_blank', 'answer' => 'Charles Babbage'],
+                    ['text' => 'What replaced vacuum tubes in computers?', 'type' => 'multiple_choice', 'answer' => 'transistors', 'options' => ['transistors', 'microchips', 'capacitors', 'resistors']],
+                    ['text' => 'The World Wide Web was invented by Tim Berners-Lee.', 'type' => 'true_false', 'answer' => 'TRUE'],
+                    ['text' => 'What observation about transistor density became known as Moore\'s Law?', 'type' => 'fill_blank', 'answer' => 'doubling every two years'],
+                    ['text' => 'Which technology promises to solve problems intractable for classical computers?', 'type' => 'fill_blank', 'answer' => 'quantum computing'],
+                ],
+                [
+                    ['text' => 'What was the name of the first artificial satellite?', 'type' => 'fill_blank', 'answer' => 'Sputnik'],
+                    ['text' => 'Which telescope has provided images of distant galaxies?', 'type' => 'multiple_choice', 'answer' => 'Hubble Space Telescope', 'options' => ['James Webb Telescope', 'Hubble Space Telescope', 'Chandra Observatory', 'Spitzer Telescope']],
+                    ['text' => 'Private companies have reduced the cost of reaching orbit.', 'type' => 'true_false', 'answer' => 'TRUE'],
+                    ['text' => 'What is the name of SpaceX\'s satellite internet constellation?', 'type' => 'fill_blank', 'answer' => 'Starlink'],
+                    ['text' => 'NASA\'s programme to return astronauts to the Moon is called what?', 'type' => 'fill_blank', 'answer' => 'Artemis'],
+                ],
+            ],
+            2 => [ // Environment / Nature passages
+                [
+                    ['text' => 'What term describes the variety of life on Earth?', 'type' => 'fill_blank', 'answer' => 'biodiversity'],
+                    ['text' => 'Approximately what fraction of the world\'s flowering plants depend on pollinators?', 'type' => 'multiple_choice', 'answer' => 'three-quarters', 'options' => ['one-quarter', 'one-half', 'three-quarters', 'all']],
+                    ['text' => 'The current rate of species extinction is higher than the natural background rate.', 'type' => 'true_false', 'answer' => 'TRUE'],
+                    ['text' => 'What percentage of Earth\'s land surface is covered by protected areas?', 'type' => 'fill_blank', 'answer' => 'fifteen percent'],
+                    ['text' => 'Which primate has seen its population grow from fewer than 300 to over 1,000?', 'type' => 'fill_blank', 'answer' => 'mountain gorilla'],
+                ],
+                [
+                    ['text' => 'What percentage of the Earth\'s surface do oceans cover?', 'type' => 'fill_blank', 'answer' => 'more than seventy percent'],
+                    ['text' => 'What are the microscopic marine plants that produce oxygen called?', 'type' => 'multiple_choice', 'answer' => 'phytoplankton', 'options' => ['zooplankton', 'phytoplankton', 'algae', 'diatoms']],
+                    ['text' => 'Plastic pollution has no effect on marine mammals.', 'type' => 'true_false', 'answer' => 'FALSE'],
+                    ['text' => 'How many tonnes of plastic enter the oceans each year?', 'type' => 'fill_blank', 'answer' => 'eight million tonnes'],
+                    ['text' => 'What percentage of the ocean floor has never been mapped in detail?', 'type' => 'fill_blank', 'answer' => 'more than eighty percent'],
+                ],
+                [
+                    ['text' => 'By how much have global average temperatures risen above pre-industrial levels?', 'type' => 'fill_blank', 'answer' => '1.1 degrees Celsius'],
+                    ['text' => 'Which agreement committed countries to limiting warming to well below two degrees?', 'type' => 'multiple_choice', 'answer' => 'Paris Agreement', 'options' => ['Kyoto Protocol', 'Paris Agreement', 'Copenhagen Accord', 'Montreal Protocol']],
+                    ['text' => 'The Arctic is warming faster than the global average.', 'type' => 'true_false', 'answer' => 'TRUE'],
+                    ['text' => 'By how much have global sea levels risen since 1900?', 'type' => 'fill_blank', 'answer' => 'approximately twenty centimetres'],
+                    ['text' => 'What is the current atmospheric concentration of carbon dioxide?', 'type' => 'fill_blank', 'answer' => 'more than 420 parts per million'],
+                ],
+            ],
+            3 => [ // Society / Psychology passages
+                [
+                    ['text' => 'How many hours per day does the average person spend on social media?', 'type' => 'fill_blank', 'answer' => 'more than two hours'],
+                    ['text' => 'What EU regulation imposes obligations on large social media platforms?', 'type' => 'multiple_choice', 'answer' => 'Digital Services Act', 'options' => ['GDPR', 'Digital Services Act', 'Digital Markets Act', 'AI Act']],
+                    ['text' => 'Social media has only negative effects on mental health.', 'type' => 'true_false', 'answer' => 'FALSE'],
+                    ['text' => 'What term describes measuring oneself against others\' online posts?', 'type' => 'fill_blank', 'answer' => 'social comparison'],
+                    ['text' => 'False content spreads faster than accurate information on social platforms.', 'type' => 'true_false', 'answer' => 'TRUE'],
+                ],
+                [
+                    ['text' => 'Who won the Nobel Prize in Economics in 2002 for work on decision-making?', 'type' => 'fill_blank', 'answer' => 'Daniel Kahneman'],
+                    ['text' => 'What is the term for fast, automatic, intuitive thinking?', 'type' => 'multiple_choice', 'answer' => 'System 1', 'options' => ['System 1', 'System 2', 'Heuristic thinking', 'Analytical thinking']],
+                    ['text' => 'People feel losses more acutely than equivalent gains.', 'type' => 'true_false', 'answer' => 'TRUE'],
+                    ['text' => 'What is the field that applies behavioural insights to policy called?', 'type' => 'fill_blank', 'answer' => 'nudge theory'],
+                    ['text' => 'Anchoring refers to the influence of a recently encountered number on estimates.', 'type' => 'true_false', 'answer' => 'TRUE'],
+                ],
+                [
+                    ['text' => 'What concept advocates for all services within a fifteen-minute walk or cycle?', 'type' => 'fill_blank', 'answer' => 'fifteen-minute city'],
+                    ['text' => 'Which architect influenced the modernist planning movement?', 'type' => 'multiple_choice', 'answer' => 'Le Corbusier', 'options' => ['Frank Lloyd Wright', 'Le Corbusier', 'Zaha Hadid', 'Norman Foster']],
+                    ['text' => 'New Urbanism favours the separation of land uses.', 'type' => 'true_false', 'answer' => 'FALSE'],
+                    ['text' => 'Which city adopted the fifteen-minute city as a guiding planning principle?', 'type' => 'fill_blank', 'answer' => 'Paris'],
+                    ['text' => 'Green infrastructure helps cool cities during heatwaves.', 'type' => 'true_false', 'answer' => 'TRUE'],
+                ],
+            ],
         ];
-        
-        foreach ($questions as $index => $questionData) {
+
+        $passageIndex = ($passage->id ?? 0) % 3; // Vary questions based on passage
+        $questionSet = $questionSets[$passageNumber][$passageIndex] ?? $questionSets[1][0];
+
+        foreach ($questionSet as $questionData) {
             \App\Models\Question::create([
                 'passage_id' => $passage->id,
                 'question_text' => $questionData['text'],
@@ -498,17 +653,49 @@ class ProductionMockTestsSeeder extends Seeder
     /**
      * Create questions for a listening exercise
      */
-    private function createQuestionsForListening($exercise, $sectionNumber)
+    private function createQuestionsForListening($exercise, $testNumber)
     {
-        $questions = [
-            ['text' => 'What is the main purpose of this conversation?', 'type' => 'fill_blank', 'answer' => 'course registration'],
-            ['text' => 'Who is the student speaking with?', 'type' => 'multiple_choice', 'answer' => 'administrator', 'options' => ['professor', 'administrator', 'counselor', 'librarian']],
-            ['text' => 'What does the student need help with?', 'type' => 'fill_blank', 'answer' => 'registering for courses'],
-            ['text' => 'Is this conversation taking place at a university?', 'type' => 'true_false', 'answer' => 'true', 'options' => ['true', 'false']],
-            ['text' => 'What information does the administrator need?', 'type' => 'fill_blank', 'answer' => 'student file'],
+        $questionSets = [
+            [
+                ['text' => 'What is the main purpose of this conversation?', 'type' => 'fill_blank', 'answer' => 'course registration'],
+                ['text' => 'Who is the student speaking with?', 'type' => 'multiple_choice', 'answer' => 'administrator', 'options' => ['professor', 'administrator', 'counselor', 'librarian']],
+                ['text' => 'What does the student need help with?', 'type' => 'fill_blank', 'answer' => 'registering for courses'],
+                ['text' => 'Is this conversation taking place at a university?', 'type' => 'true_false', 'answer' => 'TRUE'],
+                ['text' => 'What information does the administrator request first?', 'type' => 'fill_blank', 'answer' => 'student file'],
+            ],
+            [
+                ['text' => 'What is the main topic of this lecture?', 'type' => 'fill_blank', 'answer' => 'climate change'],
+                ['text' => 'What is the professor examining in this lecture?', 'type' => 'multiple_choice', 'answer' => 'precipitation patterns', 'options' => ['ocean levels', 'precipitation patterns', 'wind speeds', 'temperature records']],
+                ['text' => 'Rising temperatures are affecting weather patterns worldwide.', 'type' => 'true_false', 'answer' => 'TRUE'],
+                ['text' => 'What subject does the professor teach?', 'type' => 'fill_blank', 'answer' => 'environmental science'],
+                ['text' => 'The lecture focuses on global or local weather patterns?', 'type' => 'fill_blank', 'answer' => 'global'],
+            ],
+            [
+                ['text' => 'What are the two colleagues discussing?', 'type' => 'fill_blank', 'answer' => 'project proposal'],
+                ['text' => 'What aspect of the campaign needs more resources?', 'type' => 'multiple_choice', 'answer' => 'digital advertising', 'options' => ['print media', 'digital advertising', 'television', 'radio']],
+                ['text' => 'Person B has already reviewed the budget estimates.', 'type' => 'true_false', 'answer' => 'TRUE'],
+                ['text' => 'What type of campaign are they discussing?', 'type' => 'fill_blank', 'answer' => 'marketing campaign'],
+                ['text' => 'Do both colleagues agree on the budget allocation?', 'type' => 'fill_blank', 'answer' => 'no'],
+            ],
+            [
+                ['text' => 'What field does the interviewee work in?', 'type' => 'fill_blank', 'answer' => 'environmental science'],
+                ['text' => 'What technology is discussed in the interview?', 'type' => 'multiple_choice', 'answer' => 'solar technology', 'options' => ['wind power', 'solar technology', 'hydroelectric', 'nuclear energy']],
+                ['text' => 'Recent advances in photovoltaic efficiency have been remarkable.', 'type' => 'true_false', 'answer' => 'TRUE'],
+                ['text' => 'What format is this audio recording?', 'type' => 'fill_blank', 'answer' => 'radio interview'],
+                ['text' => 'What is the scientist\'s area of expertise?', 'type' => 'fill_blank', 'answer' => 'renewable energy'],
+            ],
+            [
+                ['text' => 'What is the main subject of this talk?', 'type' => 'fill_blank', 'answer' => 'urban transport'],
+                ['text' => 'What type of transport is being promoted?', 'type' => 'multiple_choice', 'answer' => 'public transport', 'options' => ['private cars', 'public transport', 'cycling only', 'walking']],
+                ['text' => 'Urban transport affects quality of life in cities.', 'type' => 'true_false', 'answer' => 'TRUE'],
+                ['text' => 'What problem does the speaker identify?', 'type' => 'fill_blank', 'answer' => 'traffic congestion'],
+                ['text' => 'Is the speaker in favour of reducing car use?', 'type' => 'fill_blank', 'answer' => 'yes'],
+            ],
         ];
-        
-        foreach ($questions as $index => $questionData) {
+
+        $set = $questionSets[($testNumber - 1) % count($questionSets)];
+
+        foreach ($set as $questionData) {
             \App\Models\ListeningQuestion::create([
                 'listening_exercise_id' => $exercise->id,
                 'question_text' => $questionData['text'],

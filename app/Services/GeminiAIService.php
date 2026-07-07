@@ -595,12 +595,13 @@ Return ONLY valid JSON in this exact structure:
 }";
 
         try {
-            $response = $this->callGeminiAPI($prompt, 0.3);
+            $apiResponse = $this->callGeminiAPI($prompt, 0.3);
+            $responseText = $apiResponse['text'];
             
             // Extract JSON
-            $jsonStart = strpos($response, '{');
-            $jsonEnd = strrpos($response, '}') + 1;
-            $jsonContent = substr($response, $jsonStart, $jsonEnd - $jsonStart);
+            $jsonStart = strpos($responseText, '{');
+            $jsonEnd = strrpos($responseText, '}') + 1;
+            $jsonContent = substr($responseText, $jsonStart, $jsonEnd - $jsonStart);
             
             return json_decode($jsonContent, true);
         } catch (Exception $e) {
@@ -639,12 +640,13 @@ Return ONLY valid JSON in this exact structure:
 }";
 
         try {
-            $response = $this->callGeminiAPI($prompt, 0.3);
+            $apiResponse = $this->callGeminiAPI($prompt, 0.3);
+            $responseText = $apiResponse['text'];
             
             // Extract JSON
-            $jsonStart = strpos($response, '{');
-            $jsonEnd = strrpos($response, '}') + 1;
-            $jsonContent = substr($response, $jsonStart, $jsonEnd - $jsonStart);
+            $jsonStart = strpos($responseText, '{');
+            $jsonEnd = strrpos($responseText, '}') + 1;
+            $jsonContent = substr($responseText, $jsonStart, $jsonEnd - $jsonStart);
             
             return json_decode($jsonContent, true);
         } catch (Exception $e) {
